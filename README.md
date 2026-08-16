@@ -25,10 +25,10 @@ See [docs/09_current_state_and_known_issues.md](docs/09_current_state_and_known_
 for an accurate, code-verified snapshot of what's implemented, what's dead/unused
 code left over from earlier iterations, and known gaps.
 
-Phases 1–3 (observability foundation, evaluation framework, and a FastAPI
-layer over the orchestrator) are complete. Next planned work — a TypeScript
-frontend on top of the new API, more regulatory sources, and further MLflow
-richness (model/prompt registry) — is proposed in
+Phases 1–4 (observability foundation, evaluation framework, a FastAPI layer
+over the orchestrator, and a React/TypeScript frontend) are complete. Next
+planned work — more regulatory sources and further hardening (DVC, cost
+tracking, human-review workflow) — is proposed in
 [docs/10_improvement_roadmap.md](docs/10_improvement_roadmap.md).
 
 ## Regulatory sources covered
@@ -56,16 +56,22 @@ MultiAgentOrchestrator (src/orchestrator/multi_agent_orchestrator.py)
 Aggregated response (answer + summary + risk + fused confidence + audit trail)
     │
     ├──▶ FastAPI service (app/api.py) — POST /query, /query/stream (SSE), GET /query/{trace_id}
+    │       │
+    │       ▼
+    │   React/TS frontend (web/) — primary UI, progressive SSE rendering
     │
     ▼
-Streamlit UI (src/ui/step6_read_only_ui.py) / MLflow lineage (src/chains/step6_agent_wrappers_mlflow.py)
+Streamlit UIs (src/ui/*.py, admin/debug only) / MLflow lineage (src/chains/step6_agent_wrappers_mlflow.py)
 ```
 
-`MultiAgentOrchestrator` and the live Streamlit UI both call into
-`src/chains/step6_agent_wrappers_mlflow.py`'s MLflow-wrapped agent chains
-(the orchestrator directly since Phase 3; the UI has not yet switched to
-calling the API — see `docs/09`'s known issues) — one shared chain layer,
-not two independently-maintained ones.
+`MultiAgentOrchestrator` calls `src/chains/step6_agent_wrappers_mlflow.py`'s
+MLflow-wrapped agent chains directly, and is `app/api.py`'s only caller — the
+one production path. The two Streamlit UIs (`step6_read_only_ui.py`,
+`ui_rag_full_advanced.py`) call into that same chain layer independently,
+bypassing the API; kept deliberately as admin/debug tools rather than
+migrated, since neither has an API equivalent for its debug-only features
+(see `docs/09`'s "Phase 4" section for the reasoning). `web/` is the primary
+interface for actually asking the pipeline a question.
 
 Agents are plain async Python functions wrapped as LangChain `RunnableLambda`s
 purely for a consistent execution interface — **no orchestration logic lives in
@@ -107,6 +113,10 @@ streamlit run src/ui/ui_rag_full_advanced.py
 uvicorn app.api:app --reload --port 8000
 # Interactive API docs: http://localhost:8000/docs
 
+# React/TS frontend (primary UI) — needs the API running above
+cd web && npm install && npm run dev
+# http://localhost:5173
+
 # Tests
 pytest src/tests -v
 ```
@@ -130,7 +140,10 @@ python -m app.export_openapi        # writes client/openapi.json
 cd client && npm install && npm run generate   # writes client/api-types.ts
 ```
 
-See [client/README.md](client/README.md).
+`web/` (the frontend) imports its request/response types directly from
+`client/api-types.ts` — regenerate it after any `app/schemas.py` or
+`app/api.py` change, rather than hand-editing types in `web/`. See
+[client/README.md](client/README.md) and [web/README.md](web/README.md).
 
 First run of retrieval/generation builds FAISS indexes from
 `data/processed/chunks/*.json` and calls OpenAI for embeddings — this requires

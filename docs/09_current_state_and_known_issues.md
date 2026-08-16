@@ -32,6 +32,13 @@ the MLflow-wrapped chains — resolving the "two chain paths" issue this doc
 used to document below as open. See §"Phase 3 (API layer) — complete" below.
 199/199 tests pass.
 
+**Update (Phase 4 complete, 2026-08-16):** a React + TypeScript frontend
+(`web/`) now sits on top of `app/api.py`, using `POST /query/stream` for
+progressive, stage-by-stage rendering. See §"Phase 4 (TypeScript UI) —
+complete" below for what was built and verified live (a real headless-browser
+run through both servers). No Python code changed in this phase, so the test
+count is unchanged at 199/199.
+
 ## Repository map (current)
 
 ```
@@ -41,6 +48,10 @@ app/                       FastAPI service — Phase 3
   export_openapi.py           Dumps app.api.app's OpenAPI schema to client/openapi.json
 client/                    Generated TypeScript API contract — Phase 3
   openapi.json, api-types.ts  Committed, regenerated via app/export_openapi.py + `npm run generate`
+web/                       React + TypeScript frontend — Phase 4
+  src/api/                   fetch-based client, hand-parsed SSE stream, view-model normalization
+  src/components/            QueryForm, StageTimeline, ResultView, CitationList, ConfidenceBadge, HistorySidebar
+  src/hooks/useQueryRun.ts    Drives POST /query/stream, folds stage events into one RunState
 src/
   agents/                STEP 6 agents: retrieval, citation, summarization, risk_assessment
   orchestrator/          MultiAgentOrchestrator (now the one chain path — see below), agent schema/validation
@@ -663,6 +674,128 @@ contract §3.4's future React/TS frontend (Phase 4) will import from instead
 of hand-maintaining request/response types that could silently drift from
 `app/schemas.py`.
 
+## Phase 4 (TypeScript UI) — complete, 2026-08-16
+
+`docs/10` §3.4's remaining deliverable — the React/TS frontend — is done: a
+Vite + React + TypeScript app in `web/` that imports its request/response
+types directly from the committed `client/api-types.ts` (a type-only import,
+erased at build time, so `npm run build`'s `tsc -b` type-checks against
+`client/api-types.ts` on disk without Vite's dev server ever needing to serve
+a file outside its own root). No changes were needed to `app/schemas.py` or
+`app/api.py` to support it, so `client/api-types.ts` didn't need
+regenerating.
+
+### Core screens
+
+One screen, mirroring `step6_read_only_ui.py`'s spirit rather than its
+five-panel layout 1:1:
+- **Query form** (`QueryForm.tsx`) — a single textarea plus a static
+  "Searches together: CSSF / DORA / EBA" chip row. `ui_rag_full_advanced.py`'s
+  regulator multiselect was **not** ported as a real filter: `QueryRequest`
+  (`app/schemas.py`) has no regulator field, and `retrieval_agent.py`
+  hardcodes `VECTOR_STORES = ["cssf", "dora", "eba"]` with no filter
+  parameter threaded through the orchestrator — adding one would be
+  orchestration-layer work out of scope for a frontend phase. The chips are
+  informational context only, matching what the API can actually do today.
+- **Agent-by-agent results** (`ResultView.tsx` + `CitationList.tsx` +
+  `ConfidenceBadge.tsx`) — Answer, Sources, Executive Summary, and Risk
+  Assessment sections, each appearing as its SSE stage arrives rather than
+  behind one spinner (see below). `ConfidenceBadge` uses the same thresholds
+  as `step6_read_only_ui.py`'s `confidence_badge()` (green ≥0.75, orange
+  ≥0.5, red below). `CitationList` reproduces `render_citations()`'s "cited
+  vs. retrieved" distinction, but more directly than the Streamlit version:
+  since Phase 1's citation-semantics fix, the API already returns "cited"
+  (`answer.citations`, chunk objects) and "retrieved" (top-level `sources`,
+  the full set) as two structurally distinct lists, so the frontend labels
+  each source by comparing `chunk_id` membership instead of re-deriving the
+  old text heuristic (`_is_cited_in_answer`) client-side.
+- **History/audit view** (`HistorySidebar.tsx`) — a session-local list of
+  completed queries (query text, trace_id, confidence), each clickable to
+  redisplay, plus a manual "look up by trace ID" box backed directly by `GET
+  /query/{trace_id}` — this is what makes it an *audit* view and not just a
+  session cache: a trace_id from outside the current browser session (a
+  teammate, a reload) resolves the same way. `App.tsx` normalizes both a live
+  streaming run and a fetched `QueryResponse` into one `ResultViewModel`
+  (`api/viewModel.ts`) so `ResultView` doesn't care which source it's
+  rendering.
+
+### Progressive rendering via `POST /query/stream`
+
+`api/client.ts`'s `runQueryStream` hand-parses SSE frames
+(`event: X\ndata: Y\n\n`) off a `fetch()` `ReadableStream` reader rather than
+using the browser's native `EventSource`, which only supports GET — this
+endpoint is POST. `hooks/useQueryRun.ts` folds each stage event into one
+`RunState` as it arrives; `StageTimeline.tsx` renders a
+retrieval/citation/summary/risk checklist that fills in live, and
+`ResultView` renders each section's real content (not just a checkmark) as
+soon as its stage's data is available, upgrading to the authoritative `final`
+event's data once the run completes. Per-stage payload shapes
+(`RetrievalStageData`, `CitationStageData`, etc., in `api/types.ts`) are
+hand-typed from reading `retrieval_agent.py`/`citation_agent.py`/
+`summarization_agent.py`/`risk_assessment_agent.py` directly, since only the
+aggregated `final` event is shaped like the OpenAPI-generated `QueryResponse`
+— the intermediate stages are the orchestrator's internal chain envelopes,
+not part of the committed contract.
+
+### Migration path: both Streamlit UIs kept, TS app becomes primary
+
+Decided deliberately rather than assumed, per the roadmap's open question:
+**both existing Streamlit UIs stay**, unconverted, still calling
+`src.chains.step6_agent_wrappers_mlflow` directly rather than `app/api.py`.
+Auditing what each one is actually for first:
+- `step6_read_only_ui.py` (full multi-agent pipeline) is now superseded for
+  end-user query answering — the new `web/` app covers the same ground
+  through the API instead of the chain layer directly — but it's cheap to
+  leave running as-is rather than deleting a working, tested UI.
+- `ui_rag_full_advanced.py` is a **retrieval-only debug tool** with features
+  the API doesn't expose at all: adjustable top-K/similarity-threshold
+  sliders, raw per-chunk text with query-term highlighting, and CSV/PDF
+  export. None of that is retrieval-agent or orchestrator output — it calls
+  `retrieve()` directly — so porting it would mean adding new API surface
+  (a raw retrieval endpoint, export endpoints) that nothing in `docs/10`'s
+  Phase 4 scope calls for. It remains the tool for debugging retrieval
+  quality independent of the full agent pipeline.
+
+This matches the roadmap's explicit recommendation ("keep one Streamlit UI
+alive as an internal/admin tool") — here that's effectively both, since they
+serve different debugging purposes neither the API nor `web/` replaces, while
+`web/` becomes the primary interface for actually asking the pipeline a
+question.
+
+### Verified live, full loop (not just `npm run build`)
+
+Both servers run simultaneously — `uvicorn app.api:app` on `:8000`,
+`npm run dev` (Vite) on `:5173` (the exact origin `src/config.py`'s
+`api_cors_origins` already allowlisted, from Phase 3) — and driven with a
+headless-Chromium Playwright script (no project skill for this existed yet;
+`chromium-cli` wasn't available in this environment, so Python's
+`playwright` package, already installed, drove it directly) through a real
+query: *"What are the management body's responsibilities for ICT risk
+governance under CSSF, DORA, and EBA?"* — the same query used to verify
+Phase 1's citation-semantics fix.
+
+Confirmed from the rendered page, not just that requests returned 200:
+- All four stage-timeline items reached "done" and the Answer/Sources/
+  Executive Summary/Risk Assessment sections rendered real, correctly
+  formatted content (no garbled decimal citations — the Phase 1
+  `_clean_answer_text` fix holds).
+- Sources correctly split 7 cited / 3 uncited (`DORA Article 16`, `15`, `11`
+  shown "retrieved, not cited") — the same three chunks Phase 1's
+  citation-semantics fix section documents as the original bug repro,
+  confirming the frontend's chunk_id-based comparison reproduces the
+  original heuristic's correct behavior.
+- Risk Assessment correctly fired "Partial regulatory coverage" (55%
+  confidence, orange badge) precisely because of those three uncited
+  sources.
+- Confidence badges rendered with the correct color tier at both reported
+  confidences (44% red, 55% orange).
+- Clicking the new history-sidebar entry and separately pasting its trace_id
+  into the lookup box both re-rendered the identical result via `GET
+  /query/{trace_id}` — confirming the audit-lookup path, not just the
+  streaming path.
+- Zero browser console errors, zero page errors, zero failed network
+  requests across the whole interaction.
+
 ## Known issue: `citation_agent` still re-retrieves independently of the
 ## orchestrator's `retrieval_agent` step
 
@@ -710,17 +843,15 @@ isolation.
   future pass should decide whether to delete it outright (it's all still in
   git history/available via the commit before this cleanup) rather than keep
   it checked out.
-- **The live Streamlit UI (`step6_read_only_ui.py`) still doesn't call
-  `MultiAgentOrchestrator`/`app/api.py`** — it drives
-  `src.chains.step6_agent_wrappers_mlflow`'s chains directly, the same as
-  before Phase 3. The orchestrator/UI *chain* divergence is resolved (both
-  now ultimately call the same MLflow-wrapped agent functions — see "Phase 3
-  (API layer) — complete" above), but there are still two callers of that
-  shared chain layer (the UI directly, and the API via the orchestrator)
-  rather than one. Switching the UI to call the running API instead is
-  exactly the roadmap's §3.4 "migration path" and a natural precursor to
-  Phase 4's real frontend — not done here since it wasn't required to ship
-  the API layer itself.
+- **Both Streamlit UIs still don't call `MultiAgentOrchestrator`/
+  `app/api.py`** — `step6_read_only_ui.py` and `ui_rag_full_advanced.py` both
+  still drive `src.chains.step6_agent_wrappers_mlflow`/`retrieve()` directly.
+  As of Phase 4 this is a **deliberate, documented decision**, not an
+  oversight: see "Phase 4 (TypeScript UI) — complete" → "Migration path"
+  above. `web/` is now the primary interface for the full pipeline (via
+  `app/api.py`); both Streamlit apps remain as admin/debug tools with
+  functionality (raw retrieval tuning, CSV/PDF export) that has no API
+  equivalent and wasn't in scope to add.
 - **`audit_store.py`'s file-per-trace_id store has no retention/cleanup.**
   Fine at prototype scale (mirrors the existing `data/*_cache/` pattern,
   which has the same property), but would need addressing — or replacing
