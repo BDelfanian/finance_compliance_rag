@@ -1,23 +1,571 @@
 [
   {
-    "id": "GQ_001",
+    "id": "GQ_CSSF_01",
     "query": "management body responsibilities for ICT governance",
     "vector_store_key": "cssf",
     "authority": "CSSF",
     "jurisdiction": "LU",
     "expected_chunk_ids": [
       "cssf_20_750_3_2_1"
-    ]
+    ],
+    "type": "standard"
   },
   {
-    "id": "GQ_002",
-    "query": "ICT risk management and incident reporting requirements",
+    "id": "GQ_CSSF_02",
+    "query": "how should the ICT strategy align with overall business strategy",
+    "vector_store_key": "cssf",
+    "authority": "CSSF",
+    "jurisdiction": "LU",
+    "expected_chunk_ids": [
+      "cssf_20_750_3_2_2"
+    ],
+    "type": "standard"
+  },
+  {
+    "id": "GQ_CSSF_03",
+    "query": "rules on use of third-party ICT providers and outsourcing",
+    "vector_store_key": "cssf",
+    "authority": "CSSF",
+    "jurisdiction": "LU",
+    "expected_chunk_ids": [
+      "cssf_20_750_3_2_3"
+    ],
+    "type": "standard"
+  },
+  {
+    "id": "GQ_CSSF_04",
+    "query": "processes and controls for the ICT function to identify, measure and report ICT risks within appetite limits",
+    "vector_store_key": "cssf",
+    "authority": "CSSF",
+    "jurisdiction": "LU",
+    "expected_chunk_ids": [
+      "cssf_20_750_3_3_1"
+    ],
+    "type": "standard"
+  },
+  {
+    "id": "GQ_CSSF_05",
+    "query": "classification and risk assessment of ICT assets",
+    "vector_store_key": "cssf",
+    "authority": "CSSF",
+    "jurisdiction": "LU",
+    "expected_chunk_ids": [
+      "cssf_20_750_3_3_3"
+    ],
+    "type": "standard"
+  },
+  {
+    "id": "GQ_CSSF_06",
+    "query": "risk mitigation measures for identified ICT risks",
+    "vector_store_key": "cssf",
+    "authority": "CSSF",
+    "jurisdiction": "LU",
+    "expected_chunk_ids": [
+      "cssf_20_750_3_3_4"
+    ],
+    "type": "standard"
+  },
+  {
+    "id": "GQ_CSSF_07",
+    "query": "reporting ICT risk assessment results to the management body",
+    "vector_store_key": "cssf",
+    "authority": "CSSF",
+    "jurisdiction": "LU",
+    "expected_chunk_ids": [
+      "cssf_20_750_3_3_5"
+    ],
+    "type": "standard"
+  },
+  {
+    "id": "GQ_CSSF_08",
+    "query": "audit requirements for ICT and security governance",
+    "vector_store_key": "cssf",
+    "authority": "CSSF",
+    "jurisdiction": "LU",
+    "expected_chunk_ids": [
+      "cssf_20_750_3_3_6"
+    ],
+    "type": "standard"
+  },
+  {
+    "id": "GQ_CSSF_09",
+    "query": "requirements for an information security policy",
+    "vector_store_key": "cssf",
+    "authority": "CSSF",
+    "jurisdiction": "LU",
+    "expected_chunk_ids": [
+      "cssf_20_750_3_4_1"
+    ],
+    "type": "standard"
+  },
+  {
+    "id": "GQ_CSSF_10",
+    "query": "logical security controls for access management",
+    "vector_store_key": "cssf",
+    "authority": "CSSF",
+    "jurisdiction": "LU",
+    "expected_chunk_ids": [
+      "cssf_20_750_3_4_2"
+    ],
+    "type": "standard"
+  },
+  {
+    "id": "GQ_CSSF_11",
+    "query": "physical security measures for ICT facilities",
+    "vector_store_key": "cssf",
+    "authority": "CSSF",
+    "jurisdiction": "LU",
+    "expected_chunk_ids": [
+      "cssf_20_750_3_4_3"
+    ],
+    "type": "standard"
+  },
+  {
+    "id": "GQ_CSSF_12",
+    "query": "security monitoring policies and procedures",
+    "vector_store_key": "cssf",
+    "authority": "CSSF",
+    "jurisdiction": "LU",
+    "expected_chunk_ids": [
+      "cssf_20_750_3_4_5"
+    ],
+    "type": "standard"
+  },
+  {
+    "id": "GQ_CSSF_13",
+    "query": "risk-based process governing the acquisition, development and maintenance of ICT systems",
+    "vector_store_key": "cssf",
+    "authority": "CSSF",
+    "jurisdiction": "LU",
+    "expected_chunk_ids": [
+      "cssf_20_750_3_6_2"
+    ],
+    "type": "standard"
+  },
+  {
+    "id": "GQ_CSSF_14",
+    "query": "ICT incident and problem management process",
+    "vector_store_key": "cssf",
+    "authority": "CSSF",
+    "jurisdiction": "LU",
+    "expected_chunk_ids": [
+      "cssf_20_750_3_5_1"
+    ],
+    "type": "standard"
+  },
+  {
+    "id": "GQ_CSSF_15",
+    "query": "ICT change management procedures",
+    "vector_store_key": "cssf",
+    "authority": "CSSF",
+    "jurisdiction": "LU",
+    "expected_chunk_ids": [
+      "cssf_20_750_3_6_3"
+    ],
+    "type": "standard"
+  },
+  {
+    "id": "GQ_CSSF_16",
+    "query": "business impact analysis as part of business continuity management",
+    "vector_store_key": "cssf",
+    "authority": "CSSF",
+    "jurisdiction": "LU",
+    "expected_chunk_ids": [
+      "cssf_20_750_3_7_1"
+    ],
+    "type": "standard"
+  },
+  {
+    "id": "GQ_CSSF_17",
+    "query": "testing of business continuity plans",
+    "vector_store_key": "cssf",
+    "authority": "CSSF",
+    "jurisdiction": "LU",
+    "expected_chunk_ids": [
+      "cssf_20_750_3_7_4"
+    ],
+    "type": "standard"
+  },
+  {
+    "id": "GQ_CSSF_18",
+    "query": "crisis communication during a disruption or emergency",
+    "vector_store_key": "cssf",
+    "authority": "CSSF",
+    "jurisdiction": "LU",
+    "expected_chunk_ids": [
+      "cssf_20_750_3_7_5"
+    ],
+    "type": "standard"
+  },
+  {
+    "id": "GQ_DORA_01",
+    "query": "uniform requirements for the security of network and information systems supporting financial entities' business processes",
     "vector_store_key": "dora",
     "authority": "European Union",
     "jurisdiction": "EU",
     "expected_chunk_ids": [
-      "dora_article_16",
-      "dora_article_17"
-    ]
+      "dora_article_1"
+    ],
+    "type": "standard"
+  },
+  {
+    "id": "GQ_DORA_02",
+    "query": "scope of application of DORA to financial entities",
+    "vector_store_key": "dora",
+    "authority": "European Union",
+    "jurisdiction": "EU",
+    "expected_chunk_ids": [
+      "dora_article_2"
+    ],
+    "type": "standard"
+  },
+  {
+    "id": "GQ_DORA_03",
+    "query": "proportionality principle in applying ICT risk management rules",
+    "vector_store_key": "dora",
+    "authority": "European Union",
+    "jurisdiction": "EU",
+    "expected_chunk_ids": [
+      "dora_article_4"
+    ],
+    "type": "standard"
+  },
+  {
+    "id": "GQ_DORA_04",
+    "query": "governance and organisation requirements for ICT risk management",
+    "vector_store_key": "dora",
+    "authority": "European Union",
+    "jurisdiction": "EU",
+    "expected_chunk_ids": [
+      "dora_article_5"
+    ],
+    "type": "standard"
+  },
+  {
+    "id": "GQ_DORA_05",
+    "query": "requirements for the ICT risk management framework",
+    "vector_store_key": "dora",
+    "authority": "European Union",
+    "jurisdiction": "EU",
+    "expected_chunk_ids": [
+      "dora_article_6"
+    ],
+    "type": "standard"
+  },
+  {
+    "id": "GQ_DORA_06",
+    "query": "identification of ICT risk as part of the risk management framework",
+    "vector_store_key": "dora",
+    "authority": "European Union",
+    "jurisdiction": "EU",
+    "expected_chunk_ids": [
+      "dora_article_8"
+    ],
+    "type": "standard"
+  },
+  {
+    "id": "GQ_DORA_07",
+    "query": "protection and prevention measures against ICT risk",
+    "vector_store_key": "dora",
+    "authority": "European Union",
+    "jurisdiction": "EU",
+    "expected_chunk_ids": [
+      "dora_article_9"
+    ],
+    "type": "standard"
+  },
+  {
+    "id": "GQ_DORA_08",
+    "query": "mechanisms to promptly detect anomalous activity",
+    "vector_store_key": "dora",
+    "authority": "European Union",
+    "jurisdiction": "EU",
+    "expected_chunk_ids": [
+      "dora_article_10"
+    ],
+    "type": "standard"
+  },
+  {
+    "id": "GQ_DORA_09",
+    "query": "response and recovery measures for ICT disruptions",
+    "vector_store_key": "dora",
+    "authority": "European Union",
+    "jurisdiction": "EU",
+    "expected_chunk_ids": [
+      "dora_article_11"
+    ],
+    "type": "standard"
+  },
+  {
+    "id": "GQ_DORA_10",
+    "query": "backup policies and restoration procedures",
+    "vector_store_key": "dora",
+    "authority": "European Union",
+    "jurisdiction": "EU",
+    "expected_chunk_ids": [
+      "dora_article_12"
+    ],
+    "type": "standard"
+  },
+  {
+    "id": "GQ_DORA_11",
+    "query": "classification of major ICT-related incidents",
+    "vector_store_key": "dora",
+    "authority": "European Union",
+    "jurisdiction": "EU",
+    "expected_chunk_ids": [
+      "dora_article_18"
+    ],
+    "type": "standard"
+  },
+  {
+    "id": "GQ_DORA_12",
+    "query": "reporting obligations for major ICT-related incidents",
+    "vector_store_key": "dora",
+    "authority": "European Union",
+    "jurisdiction": "EU",
+    "expected_chunk_ids": [
+      "dora_article_19"
+    ],
+    "type": "standard"
+  },
+  {
+    "id": "GQ_DORA_13",
+    "query": "digital operational resilience testing programme requirements",
+    "vector_store_key": "dora",
+    "authority": "European Union",
+    "jurisdiction": "EU",
+    "expected_chunk_ids": [
+      "dora_article_24"
+    ],
+    "type": "standard"
+  },
+  {
+    "id": "GQ_DORA_14",
+    "query": "advanced testing of ICT tools systems and processes based on TLPT",
+    "vector_store_key": "dora",
+    "authority": "European Union",
+    "jurisdiction": "EU",
+    "expected_chunk_ids": [
+      "dora_article_26"
+    ],
+    "type": "standard"
+  },
+  {
+    "id": "GQ_DORA_15",
+    "query": "financial entities exchanging cyber threat information and intelligence with each other",
+    "vector_store_key": "dora",
+    "authority": "European Union",
+    "jurisdiction": "EU",
+    "expected_chunk_ids": [
+      "dora_article_45"
+    ],
+    "type": "standard"
+  },
+  {
+    "id": "GQ_DORA_16",
+    "query": "key contractual provisions for ICT third-party service arrangements",
+    "vector_store_key": "dora",
+    "authority": "European Union",
+    "jurisdiction": "EU",
+    "expected_chunk_ids": [
+      "dora_article_30"
+    ],
+    "type": "standard"
+  },
+  {
+    "id": "GQ_DORA_17",
+    "query": "designation of critical ICT third-party service providers",
+    "vector_store_key": "dora",
+    "authority": "European Union",
+    "jurisdiction": "EU",
+    "expected_chunk_ids": [
+      "dora_article_31"
+    ],
+    "type": "standard"
+  },
+  {
+    "id": "GQ_DORA_18",
+    "query": "administrative penalties and remedial measures for non-compliance",
+    "vector_store_key": "dora",
+    "authority": "European Union",
+    "jurisdiction": "EU",
+    "expected_chunk_ids": [
+      "dora_article_50"
+    ],
+    "type": "standard"
+  },
+  {
+    "id": "GQ_EBA_01",
+    "query": "guidelines set out the EBA's view of appropriate supervisory practices and how competent authorities should comply",
+    "vector_store_key": "eba",
+    "authority": "European Banking Authority",
+    "jurisdiction": "EU",
+    "expected_chunk_ids": [
+      "eba_outsourcing_paragraph_2"
+    ],
+    "type": "standard"
+  },
+  {
+    "id": "GQ_EBA_02",
+    "query": "these guidelines are addressed to competent authorities, institutions and payment institutions",
+    "vector_store_key": "eba",
+    "authority": "European Banking Authority",
+    "jurisdiction": "EU",
+    "expected_chunk_ids": [
+      "eba_outsourcing_paragraph_7"
+    ],
+    "type": "standard"
+  },
+  {
+    "id": "GQ_EBA_03",
+    "query": "management body responsible for ensuring the institution continues to meet its authorisation conditions and for internal organisation",
+    "vector_store_key": "eba",
+    "authority": "European Banking Authority",
+    "jurisdiction": "EU",
+    "expected_chunk_ids": [
+      "eba_outsourcing_paragraph_36"
+    ],
+    "type": "standard"
+  },
+  {
+    "id": "GQ_EBA_04",
+    "query": "assigning responsibility for managing and overseeing outsourcing arrangements",
+    "vector_store_key": "eba",
+    "authority": "European Banking Authority",
+    "jurisdiction": "EU",
+    "expected_chunk_ids": [
+      "eba_outsourcing_paragraph_38"
+    ],
+    "type": "standard"
+  },
+  {
+    "id": "GQ_EBA_05",
+    "query": "content of the outsourcing policy and its life cycle phases",
+    "vector_store_key": "eba",
+    "authority": "European Banking Authority",
+    "jurisdiction": "EU",
+    "expected_chunk_ids": [
+      "eba_outsourcing_paragraph_42"
+    ],
+    "type": "standard"
+  },
+  {
+    "id": "GQ_EBA_06",
+    "query": "maintaining a register of outsourcing arrangements",
+    "vector_store_key": "eba",
+    "authority": "European Banking Authority",
+    "jurisdiction": "EU",
+    "expected_chunk_ids": [
+      "eba_outsourcing_paragraph_54"
+    ],
+    "type": "standard"
+  },
+  {
+    "id": "GQ_EBA_07",
+    "query": "risk assessment prior to entering an outsourcing arrangement",
+    "vector_store_key": "eba",
+    "authority": "European Banking Authority",
+    "jurisdiction": "EU",
+    "expected_chunk_ids": [
+      "eba_outsourcing_paragraph_64"
+    ],
+    "type": "standard"
+  },
+  {
+    "id": "GQ_EBA_08",
+    "query": "conditions for permitting sub-outsourcing of critical functions",
+    "vector_store_key": "eba",
+    "authority": "European Banking Authority",
+    "jurisdiction": "EU",
+    "expected_chunk_ids": [
+      "eba_outsourcing_paragraph_77"
+    ],
+    "type": "standard"
+  },
+  {
+    "id": "GQ_EBA_09",
+    "query": "exercising access and audit rights and determining audit frequency using a risk-based approach",
+    "vector_store_key": "eba",
+    "authority": "European Banking Authority",
+    "jurisdiction": "EU",
+    "expected_chunk_ids": [
+      "eba_outsourcing_paragraph_90"
+    ],
+    "type": "standard"
+  },
+  {
+    "id": "GQ_EBA_10",
+    "query": "developing exit strategies for outsourcing arrangements",
+    "vector_store_key": "eba",
+    "authority": "European Banking Authority",
+    "jurisdiction": "EU",
+    "expected_chunk_ids": [
+      "eba_outsourcing_paragraph_107"
+    ],
+    "type": "standard"
+  },
+  {
+    "id": "GQ_ADV_01",
+    "query": "what is the best recipe for a sourdough bread starter",
+    "vector_store_key": "cssf",
+    "authority": "CSSF",
+    "jurisdiction": "LU",
+    "expected_chunk_ids": [],
+    "type": "no_answer"
+  },
+  {
+    "id": "GQ_ADV_02",
+    "query": "how do I train a large language model from scratch",
+    "vector_store_key": "dora",
+    "authority": "European Union",
+    "jurisdiction": "EU",
+    "expected_chunk_ids": [],
+    "type": "no_answer"
+  },
+  {
+    "id": "GQ_ADV_03",
+    "query": "what are the offside rules in professional football",
+    "vector_store_key": "eba",
+    "authority": "European Banking Authority",
+    "jurisdiction": "EU",
+    "expected_chunk_ids": [],
+    "type": "no_answer"
+  },
+  {
+    "id": "GQ_ADV_04",
+    "query": "recommended tourist itinerary for a week in Japan",
+    "vector_store_key": "cssf",
+    "authority": "CSSF",
+    "jurisdiction": "LU",
+    "expected_chunk_ids": [],
+    "type": "no_answer"
+  },
+  {
+    "id": "GQ_ADV_05",
+    "query": "requirements for GDPR data subject access requests",
+    "vector_store_key": "dora",
+    "authority": "European Union",
+    "jurisdiction": "EU",
+    "expected_chunk_ids": [],
+    "type": "no_answer"
+  },
+  {
+    "id": "GQ_ADV_06",
+    "query": "what does DORA Article 99 require of cloud providers",
+    "vector_store_key": "dora",
+    "authority": "European Union",
+    "jurisdiction": "EU",
+    "expected_chunk_ids": [],
+    "type": "no_answer"
+  },
+  {
+    "id": "GQ_ADV_07",
+    "query": "best practices for watering indoor houseplants",
+    "vector_store_key": "eba",
+    "authority": "European Banking Authority",
+    "jurisdiction": "EU",
+    "expected_chunk_ids": [],
+    "type": "no_answer"
   }
 ]

@@ -1,0 +1,11 @@
+{
+  "num_queries": 53,
+  "num_standard": 46,
+  "num_no_answer": 7,
+  "mean_precision_at_5": 0.4807971014492754,
+  "mean_mrr": 0.8340579710144927,
+  "abstention_retrieval_accuracy": 1.0,
+  "mean_faithfulness": 0.9404347826086956,
+  "mean_citation_accuracy": 0.9786956521739131,
+  "abstention_generation_accuracy": 1.0
+}

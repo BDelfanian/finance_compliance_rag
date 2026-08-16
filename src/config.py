@@ -66,6 +66,18 @@ class Settings(BaseSettings):
     mlflow_experiment_name: str = "finance_compliance_rag_agents"
 
     # -------------------------------
+    # Evaluation (src/evaluation/) — Phase 2
+    # -------------------------------
+    # Separate experiment from mlflow_experiment_name above, so ad hoc eval
+    # runs don't pollute the production-query run stream (roadmap §3.2).
+    mlflow_eval_experiment_name: str = "finance_compliance_rag_eval"
+    eval_results_path: Path = Path("data/eval_results")
+    eval_baseline_path: Path = Path("data/eval_baseline.json")
+    # Model used to score faithfulness/citation-accuracy; defaults to the
+    # same model used for generation, override to use a stronger judge.
+    eval_judge_model: str = "gpt-5-mini"
+
+    # -------------------------------
     # Orchestration
     # -------------------------------
     model_version: str = "gpt-4.1"

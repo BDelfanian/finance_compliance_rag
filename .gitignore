@@ -16,3 +16,7 @@ data/retrieval_logs/
 data/mlflow_artifacts/
 mlflow.db
 mlruns/
+
+# Per-run eval output (src/evaluation/run_eval.py) — data/eval_baseline.json
+# is the one eval artifact that IS committed (deliberately updated).
+data/eval_results/

@@ -34,6 +34,25 @@ def test_expected_chunks_retrieved(case):
         assert expected in retrieved_ids
 
 
+@pytest.mark.parametrize(
+    "case", [c for c in GOLDEN_QUERIES if c.get("type") == "no_answer"]
+)
+def test_no_answer_cases_retrieve_nothing(case):
+    """Adversarial/out-of-domain queries must not clear the similarity
+    threshold for any chunk — this is what lets generation correctly say
+    "Information not available in retrieved sources" instead of citing an
+    unrelated chunk."""
+    result = retrieve(
+        query_text=case["query"],
+        vector_store_key=case["vector_store_key"],
+        authority=case["authority"],
+        jurisdiction=case["jurisdiction"],
+        top_k=5
+    )
+
+    assert result["retrieved_chunks"] == []
+
+
 @pytest.mark.parametrize("case", GOLDEN_QUERIES)
 def test_similarity_threshold_respected(case):
     result = retrieve(

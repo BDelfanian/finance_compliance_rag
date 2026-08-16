@@ -1,8 +1,8 @@
 # Improvement Roadmap & Restructuring Plan
 
-**Status:** Phases 0 and 1 are complete (executed, tested, and verified live
-— see `docs/09_current_state_and_known_issues.md` for exactly what changed).
-Phases 2–6 remain proposals.
+**Status:** Phases 0, 1, and 2 are complete (executed, tested, and verified
+live — see `docs/09_current_state_and_known_issues.md` for exactly what
+changed). Phases 3–6 remain proposals.
 
 ## 1. Purpose
 
@@ -75,9 +75,12 @@ default with one env var. `step6_agent_wrappers_mlflow.py` now logs params
 `warnings_count`) on every run, and nests all four agent runs for one query
 under a single parent run (`traced_query_run`, tagged with `trace_id`) — see
 docs/09's "Fixed" section for what was verified live, including against the
-real Dockerized server. Still open: Postgres/S3 backing store, separate
-experiments per purpose (retrieval-eval / generation-eval / production),
-model/prompt registry, and CI integration.
+real Dockerized server. **Update (Phase 2, 2026-08-16)**: eval runs now log
+to their own `finance_compliance_rag_eval` experiment, confirmed live to be
+distinct from the production `finance_compliance_rag_agents` one (see
+`src/evaluation/run_eval.py`) — the "separate experiments per purpose" and
+"CI integration" items below are done. Still open: Postgres/S3 backing
+store, model/prompt registry.
 
 Today, MLflow is used narrowly: `src/chains/step6_agent_wrappers_mlflow.py`
 logs each agent's I/O as a JSON artifact per run, against a local SQLite file
@@ -217,18 +220,27 @@ manual polling burden.
 
 ### 3.6 Other recommended components
 
-- **Evaluation framework**: `golden_queries.json` currently has 2 entries and
-  only covers retrieval. Expand to a proper eval set (aim for 30–50 queries
-  spanning all regulators, including adversarial/no-answer cases) and add
-  generation-quality metrics — faithfulness/citation-accuracy scoring via an
-  LLM-judge (RAGAS is a reasonable starting library) alongside retrieval
-  precision@k/MRR. This is what makes the MLflow metrics in §3.2 meaningful
-  and gives CI something to gate on.
-- **CI/CD**: GitHub Actions workflow running `ruff`/`black` (lint/format),
-  `mypy` (typing — the codebase already uses `TypedDict`, worth going
-  further), `pytest`, and the eval suite on every PR. Fail the build on a
-  retrieval/generation regression against golden queries, not just on test
-  failure.
+- ~~**Evaluation framework**~~ ✅ done 2026-08-16 (Phase 2):
+  `src/tests/golden_queries.json` expanded from 2 to 53 entries (46
+  standard + 7 adversarial/no-answer), every one validated against live
+  retrieval before being committed. `src/evaluation/metrics.py` adds
+  precision@5/MRR; `src/evaluation/llm_judge.py` adds faithfulness/citation-
+  accuracy via a direct OpenAI judge call (RAGAS evaluated and rejected —
+  see the module's docstring). `src/evaluation/run_eval.py` runs the full
+  set, logs to its own `finance_compliance_rag_eval` MLflow experiment
+  (confirmed live to be a distinct experiment from the production
+  `finance_compliance_rag_agents` one), and gates on regression against a
+  committed `data/eval_baseline.json`. See `docs/09`'s "Phase 2 (Evaluation
+  framework) — complete" section for what was verified live, including a
+  real bug found (a judge-call failure was silently erasing an unrelated,
+  already-correct abstention metric — fixed) and a real external blocker hit
+  (the OpenAI account ran out of credits mid-run, confirming the gate
+  fails safe rather than silently passing). Still open: CI lint/type
+  checking (`ruff`/`black`/`mypy`) — the item below.
+- **CI/CD (lint & type checking)**: GitHub Actions (`.github/workflows/ci.yml`)
+  now runs `pytest` and the eval regression gate on every push/PR (Phase 2,
+  done). Still proposal-only: `ruff`/`black` (lint/format) and `mypy`
+  (typing — the codebase already uses `TypedDict`, worth going further).
 - ~~**Centralized config**~~ ✅ done 2026-08-16: `src/config.py`'s
   `pydantic-settings`-based `Settings` (`get_settings()`, `lru_cache`d)
   replaced the scattered module-level constants (`VECTOR_DIM`,
@@ -316,7 +328,7 @@ finance_compliance_rag/
 |---|---|---|---|
 | **0. Cleanup & hygiene** ✅ | Stable foundation | Fixed broken/inconsistent imports, deleted stub files, consolidated 5 UIs → 2, `pyproject.toml`, `.gitignore` for data artifacts, `.env.example` | — |
 | **1. Observability foundation** ✅ | See what the system is doing | Structured logging, trace IDs, centralized config, MLflow tracking server (Docker), params/metrics logging | Phase 0 |
-| **2. Evaluation framework** | Make quality measurable | Expanded golden queries, retrieval + generation metrics, CI gate, MLflow eval experiment | Phase 1 |
+| **2. Evaluation framework** ✅ | Make quality measurable | Expanded golden queries (53), retrieval + generation metrics, CI gate, MLflow eval experiment | Phase 1 |
 | **3. API layer** | Decouple UI from pipeline | FastAPI service, typed schemas, streaming endpoint, OpenAPI → TS client generation | Phase 0 |
 | **4. TypeScript UI** | Real frontend | React+TS app: query, agent-by-agent results, audit/history view | Phase 3 |
 | **5. Source enrichment** | Broader coverage | GDPR chunking/indexing, shared base parser, 1–2 new regulators (NIS2/MiCA suggested first) | Phase 0, benefits from Phase 2 |
@@ -346,12 +358,14 @@ sources come with eval coverage immediately) but doesn't strictly require it.
 
 ## 7. Suggested immediate next step
 
-Phases 0 and 1 are done, tested, and verified live — see
+Phases 0, 1, and 2 are done, tested, and verified live — see
 `docs/09_current_state_and_known_issues.md` for the full list of what
 changed and what's still open (notably: `MultiAgentOrchestrator` vs. the live
-UI using different chain paths, and dependency versions still unpinned).
-Next up: **Phase 2 (evaluation framework)** — expand `golden_queries.json`
-beyond its current 2 entries, add generation-quality metrics
-(faithfulness/citation-accuracy), and wire eval runs into the new MLflow
-tracking server as their own experiment. Phase 3 (API layer) can start in
-parallel if a TypeScript UI becomes a priority sooner.
+UI using different chain paths, dependency versions still unpinned, and — new
+from Phase 2 — a real generation-quality issue the eval framework surfaced,
+where the LLM occasionally abstains incorrectly on a well-covered query due
+to sampling variance, plus the CI eval gate's hard dependency on the
+configured OpenAI account having credits). Next up: **Phase 3 (API layer)**
+— it can start independently of Phase 2 (both only depend on Phase 0) and
+is the prerequisite for Phase 4 (TypeScript UI). Phase 5 (source enrichment)
+now has eval coverage to build on if pursued instead/first.
