@@ -28,6 +28,9 @@ dependencies = [
     "mlflow",
     # Config
     "pydantic-settings",
+    # API (app/api.py)
+    "fastapi",
+    "uvicorn[standard]",
     # UI
     "streamlit",
     "pandas",
@@ -36,7 +39,7 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
-dev = ["pytest", "pytest-asyncio"]
+dev = ["pytest", "pytest-asyncio", "httpx"]
 
 [tool.setuptools.packages.find]
 where = ["."]

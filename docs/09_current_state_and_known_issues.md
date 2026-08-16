@@ -26,21 +26,36 @@ expanded golden queries, retrieval + generation metrics, a dedicated MLflow
 eval experiment, and a CI regression gate — is done. See §"Phase 2
 (Evaluation framework) — complete" below. 191/191 tests pass.
 
+**Update (Phase 3 complete, 2026-08-16):** a FastAPI service (`app/api.py`)
+now sits in front of `MultiAgentOrchestrator`, which was itself switched onto
+the MLflow-wrapped chains — resolving the "two chain paths" issue this doc
+used to document below as open. See §"Phase 3 (API layer) — complete" below.
+199/199 tests pass.
+
 ## Repository map (current)
 
 ```
+app/                       FastAPI service — Phase 3
+  api.py                    POST /query, POST /query/stream (SSE), GET /query/{trace_id}, GET /health
+  schemas.py                 Pydantic request/response models mirroring AgentResult
+  export_openapi.py           Dumps app.api.app's OpenAPI schema to client/openapi.json
+client/                    Generated TypeScript API contract — Phase 3
+  openapi.json, api-types.ts  Committed, regenerated via app/export_openapi.py + `npm run generate`
 src/
   agents/                STEP 6 agents: retrieval, citation, summarization, risk_assessment
-  orchestrator/          MultiAgentOrchestrator, agent schema/validation, LangChain wrappers
-  chains/                MLflow-wrapped agent chains (step6_agent_wrappers_mlflow.py)
+  orchestrator/          MultiAgentOrchestrator (now the one chain path — see below), agent schema/validation
+  chains/                MLflow-wrapped agent chains (step6_agent_wrappers_mlflow.py) — used by
+                          MultiAgentOrchestrator directly since Phase 3
   generation/            STEP 5 citation-bound answer generation (GPT-5 mini)
   retrieval/             STEP 4 embeddings + FAISS retrieval
   chunking/               Active chunking pipeline (cssf/dora/eba), registry-driven
-  observability/           Structured logging + trace-ID context (logging_config.py) — Phase 1
+  observability/           Structured logging + trace-ID context (logging_config.py) — Phase 1;
+                            file-based audit_store.py (data/audit_log/) — Phase 3
   evaluation/               Golden-query eval runner, metrics, LLM-judge (run_eval.py) — Phase 2
   config.py                Centralized pydantic-settings Settings — Phase 1
-  ui/                      Two Streamlit UIs (step6_read_only_ui.py, ui_rag_full_advanced.py)
-  tests/                   pytest suite for retrieval, agents, orchestrator, MLflow lineage,
+  ui/                      Two Streamlit UIs (step6_read_only_ui.py, ui_rag_full_advanced.py) — still call
+                            src.chains.step6_agent_wrappers_mlflow directly, not the API (see known issue below)
+  tests/                   pytest suite for retrieval, agents, orchestrator, MLflow lineage, the API (test_api.py),
                             golden_queries.json (53 cases — Phase 2)
 archive/                   Superseded/dead code and data, kept for reference, not imported by anything active
   chunking_v1/             Earlier chunking iteration (formerly src/draft/) + its chunk output
@@ -50,18 +65,16 @@ archive/                   Superseded/dead code and data, kept for reference, no
 data/
   raw/                     Source PDFs (CSSF, DORA, EBA, GDPR) — tracked in git
   processed/               Extracted text + chunks — tracked in git
-  faiss/, retrieval_cache/, step5_cache/, retrieval_logs/, mlflow_artifacts/ — gitignored, rebuilt on first run
+  faiss/, retrieval_cache/, step5_cache/, retrieval_logs/, mlflow_artifacts/, audit_log/ — gitignored, rebuilt/repopulated on first run
   eval_results/             Per-run eval JSON (src/evaluation/run_eval.py) — gitignored — Phase 2
   eval_baseline.json        Committed regression-gate baseline, updated deliberately via
                              `--update-baseline` — Phase 2
-docker/                    Dockerfile.mlflow + docker-compose.yml — optional MLflow tracking server — Phase 1
+docker/                    Dockerfile.mlflow, Dockerfile.api + docker-compose.yml (mlflow + api services) — Phase 1 / 3
 docs/                      Design docs (00–08) + this file + decision log + roadmap
 .github/workflows/ci.yml    pytest + eval regression gate on every push/PR — Phase 2
 pyproject.toml              Single packaging/dependency source of truth (replaces setup.py + requirements.txt)
 .env.example                Documents every src/config.py Settings field — Phase 1
 ```
-
-`agents/` and `app/` (top-level, empty stub files) no longer exist — deleted.
 
 ## What's actually implemented (verified against code, not docs)
 
@@ -522,28 +535,150 @@ credits are available would refresh it against the fixed code path, though
 the numbers are expected to be materially the same (the fix only affects
 what happens *when* a judge call fails, not the scores when it succeeds).
 
-## Known issue: `MultiAgentOrchestrator` and the live UI use different
-## agent chains, so citation/retrieval divergence is possible
+## Phase 3 (API layer) — complete, 2026-08-16
 
-Not introduced or fixed in this pass, but surfaced while fixing the above:
-`MultiAgentOrchestrator` (`src/orchestrator/multi_agent_orchestrator.py`)
-calls the plain chains in `src/orchestrator/langchain_wrappers.py`, while the
-live Streamlit UI (`step6_read_only_ui.py`) calls the separately-defined,
-MLflow-wrapped chains in `src/chains/step6_agent_wrappers_mlflow.py`. Both
-wrap the same underlying agent functions, so behavior is equivalent, but
-`MultiAgentOrchestrator` itself is currently only exercised by
-`src/tests/test_orchestrator.py` and `test_step6_agents.py`, not by either
-live UI. Separately: `citation_agent.py`'s `retrieval_result` parameter is
-unused — it calls STEP 5's `generate_citation_bound_answer_cached`, which
-does its **own independent retrieval** via `retrieve()` rather than reusing
-the `retrieval_result` passed in from the orchestrator's `retrieval_agent`
-step. In practice both calls hit the same deterministic FAISS index and
-should return the same chunks, but nothing guarantees it structurally, and
+All `docs/10` §3.4 Phase 3 deliverables are done: a FastAPI service, typed
+Pydantic request/response schemas, a streaming endpoint, and generated
+TypeScript types. Verified by actually running the server (`uvicorn
+app.api:app`) and the fully containerized stack (`docker compose up api`
+plus a real `mlflow server`), and sending real HTTP requests that flow
+through live retrieval + `gpt-5-mini` generation — not just the mocked
+`TestClient` suite in `src/tests/test_api.py`.
+
+### Resolved the orchestrator/UI chain divergence by standardizing on one path
+
+The known issue this doc used to document here — `MultiAgentOrchestrator`
+calling the plain, unlogged chains in `src/orchestrator/langchain_wrappers.py`
+while the live UI called the separately-defined, MLflow-wrapped chains in
+`src/chains/step6_agent_wrappers_mlflow.py` — is fixed by switching
+`multi_agent_orchestrator.py`'s import to the MLflow-wrapped chains directly.
+`MultiAgentOrchestrator` is now the one orchestration path: `app/api.py` is
+its only caller, and the live UI could switch to it too as a purely additive
+follow-up (§3.4's "migration path" — not done in this pass, since it wasn't
+required for the API layer itself, see the known issue below). A side effect
+of the switch: every orchestrated run (currently, API-driven only) now gets
+MLflow params/metrics logging and parent-run nesting under one `trace_id` for
+free — `src/orchestrator/langchain_wrappers.py` itself is unchanged and still
+covered by its own tests, just no longer used in production.
+
+`src/orchestrator/langchain_wrappers.py`'s unused-`retrieval_result`
+independent-re-retrieval issue in `citation_agent.py` (the other half of what
+this section used to describe) is **not** touched by this pass — still open,
+see below.
+
+### FastAPI service (`app/api.py`)
+
+Thin HTTP layer over `MultiAgentOrchestrator`, per §3.4:
+- `POST /query` — full run, returns the aggregated result (including a new
+  top-level `sources` field: the full retrieved-chunk set, not just what got
+  cited — `MultiAgentOrchestrator.run()`'s return dict gained this field so
+  an API consumer can render "retrieved, not directly cited" the way
+  `step6_read_only_ui.py`'s `render_citations()` already does).
+- `POST /query/stream` — Server-Sent Events, one event per agent stage
+  (`retrieval`, `citation`, `summarization`, `risk_assessment`, `final`).
+  Backed by a new `MultiAgentOrchestrator.run_events()` async generator that
+  shares one internal `_run_stages()` generator with `run()`, so there are
+  still not two independently-maintained orchestration code paths. **Verified
+  live**: a real SSE request against the running server emitted all five
+  events in order for a real DORA query.
+- `GET /query/{trace_id}` — audit lookup, backed by a new
+  `src/observability/audit_store.py` (one JSON file per trace_id under
+  `data/audit_log/`, gitignored) — a lightweight stand-in for the roadmap's
+  full durable-audit-log table (§3.3), scoped to what this endpoint needs.
+  `trace_id` is validated against a strict `^[0-9a-f]{32}$` pattern before
+  ever touching the filesystem (it's attacker-controlled input on this read
+  path), returning 400 rather than passing an unsanitized value into a path
+  join.
+- `GET /health`.
+
+Pydantic schemas (`app/schemas.py`) mirror `AgentResult`
+(`src/orchestrator/agent_schema.py`) but model `citations`/`sources` as
+chunk objects (`Citation`), not the bare-string `List[str]` the TypedDict
+declares — that's what the citation/summarization/risk_assessment agents
+actually populate in practice (see the schema module's docstring).
+
+### Two real bugs found only by running the API live, not by the mocked test suite
+
+1. **Out-of-domain queries returned 500, not 502.** The orchestrator's own
+   `if not retrieval_result: raise RuntimeError(...)` fail-fast check is
+   dead code for the real "nothing retrieved" case:
+   `src/agents/retrieval_agent.py` raises `ValueError` directly instead of
+   returning a falsy result, so that check never actually fires for it. The
+   API's exception handling only caught `RuntimeError`, so a real live
+   request with `"How do I make a sourdough bread starter?"` fell through to
+   the generic 500 handler instead of the more accurate "pipeline couldn't
+   service a well-formed request" 502. Fixed by catching `(RuntimeError,
+   ValueError)` in both `/query` and `/query/stream`. **Verified live**:
+   re-ran the same query against the running server post-fix — 502 with the
+   real error message, and a regression test
+   (`test_query_out_of_domain_returns_502_not_500`) added to
+   `src/tests/test_api.py` so this can't regress silently again.
+2. **The Dockerized MLflow server rejected every request from the API
+   container** with `403 Invalid Host header - possible DNS rebinding attack
+   detected`, discovered only when running `docker compose up` and actually
+   querying the containerized API (the mocked test suite doesn't touch
+   Docker at all). A recent `mlflow server` release added Host-header
+   validation (`mlflow/server/security_utils.py`) that, by default, allows
+   `localhost` and RFC1918 private-IP patterns but not Docker Compose's own
+   service-name DNS (`http://mlflow:5000` — the value
+   `MLFLOW_TRACKING_URI` is now set to for the containerized API, replacing
+   the implicit "point at nothing, log to local sqlite inside the
+   container" default). Fixed with `--allowed-hosts` on the `mlflow server`
+   command in `docker/Dockerfile.mlflow`. Two follow-up bugs turned up
+   fixing this one, also only by testing further: the match is exact-string
+   unless the pattern contains `*`, so a bare `mlflow` didn't match the
+   client's actual `Host: mlflow:5000` header (needed `mlflow:*`); and
+   `--allowed-hosts` **replaces** mlflow's default allowlist rather than
+   extending it, so an intermediate version of the flag that included
+   `mlflow:*` but not `127.0.0.1` broke host-machine access to the mapped
+   port (e.g. a browser hitting `http://localhost:5000` for the MLflow UI)
+   that worked fine before this change. Final value reproduces mlflow's
+   original localhost/127.0.0.1 defaults plus the `mlflow` service name.
+   **Verified live, full loop**: rebuilt the image, brought up
+   `mlflow`+`api` via `docker compose`, confirmed `GET /health` on both
+   services from the host, ran a real query through the containerized API,
+   and confirmed the run landed in the real MLflow server (nested run tree,
+   correct `trace_id` tag) via the host-mapped port — not just that the
+   container started.
+
+### Containerization
+
+`docker/Dockerfile.api` (multi-stage not needed at this size — a single
+`python:3.12-slim` stage installing the project via `pyproject.toml`, with
+`data/raw` and `data/processed` baked in so retrieval has chunks to index on
+first run) plus an `api` service added to `docker/docker-compose.yml`,
+pointed at the `mlflow` service by Docker DNS name and with named volumes for
+`data/faiss`, the retrieval/step5 caches, and `data/audit_log` — the same
+rebuildable-vs-source split `.gitignore` already documents for local dev.
+
+### TypeScript client (`client/`)
+
+`app/export_openapi.py` dumps `app.api.app`'s OpenAPI schema (no running
+server required — FastAPI builds it from route/Pydantic declarations alone)
+to `client/openapi.json`; `openapi-typescript` generates `client/api-types.ts`
+from it. Both files are committed (generated, but reviewable in diffs and
+consumable without a Node toolchain at clone time — same reasoning as
+`data/eval_baseline.json`). Not a runtime HTTP client, just the typed
+contract §3.4's future React/TS frontend (Phase 4) will import from instead
+of hand-maintaining request/response types that could silently drift from
+`app/schemas.py`.
+
+## Known issue: `citation_agent` still re-retrieves independently of the
+## orchestrator's `retrieval_agent` step
+
+Not touched by Phase 3 — this is the part of the old "known issue" section
+above that Phase 3 did *not* resolve. `citation_agent.py`'s
+`retrieval_result` parameter is unused — it calls STEP 5's
+`generate_citation_bound_answer_cached`, which does its **own independent
+retrieval** via `retrieve()` rather than reusing the `retrieval_result`
+passed in from the orchestrator's `retrieval_agent` step. In practice both
+calls hit the same deterministic FAISS index and should return the same
+chunks, but nothing guarantees it structurally, and
 `risk_assessment_agent`'s coverage check compares chunks from these two
-independent retrieval calls. Worth resolving alongside a future restructuring
-pass (e.g. `MultiAgentOrchestrator` becoming the one true orchestration path
-for both UIs, and `citation_agent` reusing the passed-in `retrieval_result`
-instead of re-retrieving) rather than patching in isolation.
+independent retrieval calls. Worth resolving alongside a future
+restructuring pass (`citation_agent` reusing the passed-in
+`retrieval_result` instead of re-retrieving) rather than patching in
+isolation.
 
 ## Known issues still open (not addressed in Phase 0)
 
@@ -575,3 +710,19 @@ instead of re-retrieving) rather than patching in isolation.
   future pass should decide whether to delete it outright (it's all still in
   git history/available via the commit before this cleanup) rather than keep
   it checked out.
+- **The live Streamlit UI (`step6_read_only_ui.py`) still doesn't call
+  `MultiAgentOrchestrator`/`app/api.py`** — it drives
+  `src.chains.step6_agent_wrappers_mlflow`'s chains directly, the same as
+  before Phase 3. The orchestrator/UI *chain* divergence is resolved (both
+  now ultimately call the same MLflow-wrapped agent functions — see "Phase 3
+  (API layer) — complete" above), but there are still two callers of that
+  shared chain layer (the UI directly, and the API via the orchestrator)
+  rather than one. Switching the UI to call the running API instead is
+  exactly the roadmap's §3.4 "migration path" and a natural precursor to
+  Phase 4's real frontend — not done here since it wasn't required to ship
+  the API layer itself.
+- **`audit_store.py`'s file-per-trace_id store has no retention/cleanup.**
+  Fine at prototype scale (mirrors the existing `data/*_cache/` pattern,
+  which has the same property), but would need addressing — or replacing
+  with the roadmap's proper durable audit log (§3.3) — before any real
+  production use.

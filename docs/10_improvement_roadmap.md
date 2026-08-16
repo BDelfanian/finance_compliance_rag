@@ -1,8 +1,8 @@
 # Improvement Roadmap & Restructuring Plan
 
-**Status:** Phases 0, 1, and 2 are complete (executed, tested, and verified
-live — see `docs/09_current_state_and_known_issues.md` for exactly what
-changed). Phases 3–6 remain proposals.
+**Status:** Phases 0, 1, 2, and 3 are complete (executed, tested, and
+verified live — see `docs/09_current_state_and_known_issues.md` for exactly
+what changed). Phases 4–6 remain proposals.
 
 ## 1. Purpose
 
@@ -156,26 +156,38 @@ You can't put a TypeScript frontend directly on top of the current code —
 the orchestrator is a Python async function, and the Streamlit UIs call into
 `src/` directly. The prerequisite is a real API layer.
 
-- **FastAPI service** (fills the empty `app/api.py`): thin HTTP layer over
-  `MultiAgentOrchestrator`, with Pydantic request/response models mirroring
-  `AgentResult`. Endpoints: `POST /query` (full orchestrated run),
-  `GET /query/{trace_id}` (audit lookup), `GET /health`. Streaming
-  (Server-Sent Events) is worth it so the UI can show retrieval → citation →
-  summary/risk progressively instead of one long spinner.
-- **Typed contract**: generate a TypeScript client from FastAPI's OpenAPI
-  schema (`openapi-typescript`), so the frontend's types can never drift from
-  the backend's Pydantic models silently.
+**Status (2026-08-16, Phase 3 complete): the FastAPI service, typed schemas,
+streaming endpoint, and generated TypeScript types are done.** `app/api.py`
+is a thin HTTP layer over `MultiAgentOrchestrator` — which was itself
+switched onto the MLflow-wrapped chains as part of this phase, resolving the
+orchestrator/UI chain divergence `docs/09` used to flag (see that doc's
+"Phase 3 (API layer) — complete" section for what changed and what was
+verified live, including two real bugs only Docker/live-server testing
+caught). Endpoints: `POST /query`, `POST /query/stream` (SSE), `GET
+/query/{trace_id}` (backed by a new file-based `src/observability/audit_store.py`
+— a lightweight stand-in for §3.3's full durable audit log, not that log
+itself), `GET /health`. `app/export_openapi.py` + `client/` generate and
+commit `client/api-types.ts` via `openapi-typescript`. `docker/Dockerfile.api`
++ an `api` service in `docker/docker-compose.yml` containerize it alongside
+the existing `mlflow` service. Still open, deferred to Phase 4: the actual
+React/TS frontend below, and switching the live Streamlit UI to call the API
+instead of the chain layer directly (the "migration path" bullet).
+
+- ~~**FastAPI service**~~ ✅ done — see above.
+- ~~**Typed contract**~~ ✅ done — see above.
 - **Frontend**: React + TypeScript + Vite. Recommended over Next.js here —
   this is an internal tool hitting one backend, not a site needing SSR/routing
   complexity. Core screens: query input with regulator filters (mirrors
   `ui_rag_full_advanced.py`), agent-by-agent results (mirrors
   `step6_read_only_ui.py`) with citations rendered as clickable source
   references, and a history/audit view backed by the durable audit log from
-  §3.3.
+  §3.3. Not started.
 - **Migration path**: keep one Streamlit UI alive as an internal/admin tool
   (fast to extend for one-off debugging) while the FastAPI + TS stack becomes
   the primary interface. Don't try to port every existing Streamlit feature
-  1:1 — audit which of the five current UIs' features are actually used.
+  1:1 — audit which of the five current UIs' features are actually used. Not
+  started — `step6_read_only_ui.py` still calls
+  `src.chains.step6_agent_wrappers_mlflow` directly rather than `app/api.py`.
 
 ### 3.5 Enriching the source database
 
@@ -329,7 +341,7 @@ finance_compliance_rag/
 | **0. Cleanup & hygiene** ✅ | Stable foundation | Fixed broken/inconsistent imports, deleted stub files, consolidated 5 UIs → 2, `pyproject.toml`, `.gitignore` for data artifacts, `.env.example` | — |
 | **1. Observability foundation** ✅ | See what the system is doing | Structured logging, trace IDs, centralized config, MLflow tracking server (Docker), params/metrics logging | Phase 0 |
 | **2. Evaluation framework** ✅ | Make quality measurable | Expanded golden queries (53), retrieval + generation metrics, CI gate, MLflow eval experiment | Phase 1 |
-| **3. API layer** | Decouple UI from pipeline | FastAPI service, typed schemas, streaming endpoint, OpenAPI → TS client generation | Phase 0 |
+| **3. API layer** ✅ | Decouple UI from pipeline | FastAPI service, typed schemas, streaming endpoint, OpenAPI → TS client generation | Phase 0 |
 | **4. TypeScript UI** | Real frontend | React+TS app: query, agent-by-agent results, audit/history view | Phase 3 |
 | **5. Source enrichment** | Broader coverage | GDPR chunking/indexing, shared base parser, 1–2 new regulators (NIS2/MiCA suggested first) | Phase 0, benefits from Phase 2 |
 | **6. Hardening** | Ready for heavier use | DVC for data artifacts, containerization, cost tracking, human-review workflow, security checks | Phases 1–5 |
@@ -358,14 +370,15 @@ sources come with eval coverage immediately) but doesn't strictly require it.
 
 ## 7. Suggested immediate next step
 
-Phases 0, 1, and 2 are done, tested, and verified live — see
+Phases 0, 1, 2, and 3 are done, tested, and verified live — see
 `docs/09_current_state_and_known_issues.md` for the full list of what
-changed and what's still open (notably: `MultiAgentOrchestrator` vs. the live
-UI using different chain paths, dependency versions still unpinned, and — new
-from Phase 2 — a real generation-quality issue the eval framework surfaced,
-where the LLM occasionally abstains incorrectly on a well-covered query due
-to sampling variance, plus the CI eval gate's hard dependency on the
-configured OpenAI account having credits). Next up: **Phase 3 (API layer)**
-— it can start independently of Phase 2 (both only depend on Phase 0) and
-is the prerequisite for Phase 4 (TypeScript UI). Phase 5 (source enrichment)
-now has eval coverage to build on if pursued instead/first.
+changed and what's still open (notably: dependency versions still unpinned;
+a real generation-quality issue the Phase 2 eval framework surfaced, where
+the LLM occasionally abstains incorrectly on a well-covered query due to
+sampling variance; the CI eval gate's hard dependency on the configured
+OpenAI account having credits; and, new from Phase 3, the live Streamlit UI
+still not calling the new API/orchestrator path, and the audit store having
+no retention policy). Next up: **Phase 4 (TypeScript UI)** — the API layer
+it depends on is now done, and `client/api-types.ts` is ready to import
+from. Phase 5 (source enrichment) still has eval coverage to build on if
+pursued instead/first.

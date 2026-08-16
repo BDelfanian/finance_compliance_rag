@@ -20,3 +20,10 @@ mlruns/
 # Per-run eval output (src/evaluation/run_eval.py) — data/eval_baseline.json
 # is the one eval artifact that IS committed (deliberately updated).
 data/eval_results/
+
+# Per-trace audit records written by app/api.py (src/observability/audit_store.py)
+data/audit_log/
+
+# client/api-types.ts and client/openapi.json ARE committed (see
+# client/README.md) — only node_modules is a build artifact.
+client/node_modules/

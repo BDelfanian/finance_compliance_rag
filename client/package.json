@@ -1,0 +1,12 @@
+{
+  "name": "finance-compliance-rag-client",
+  "private": true,
+  "version": "0.1.0",
+  "description": "Generated TypeScript types for the Finance Compliance RAG API (app/api.py). Not a runtime client library — this is the typed contract a future frontend (roadmap Phase 4) imports from, generated straight from the FastAPI OpenAPI schema so it can't drift silently from the backend's Pydantic models.",
+  "scripts": {
+    "generate": "openapi-typescript openapi.json -o api-types.ts"
+  },
+  "devDependencies": {
+    "openapi-typescript": "^7.4.0"
+  }
+}

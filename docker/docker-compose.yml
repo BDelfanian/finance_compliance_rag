@@ -10,5 +10,40 @@ services:
       - mlflow_data:/mlflow
     restart: unless-stopped
 
+  api:
+    build:
+      # Repo root, not docker/ — the API image needs pyproject.toml, src/,
+      # app/, and data/{raw,processed} from the repo root (see
+      # Dockerfile.api), unlike Dockerfile.mlflow which installs mlflow
+      # itself and copies nothing from the repo.
+      context: ..
+      dockerfile: docker/Dockerfile.api
+    container_name: finance_compliance_rag_api
+    ports:
+      - "8000:8000"
+    env_file:
+      - ../.env
+    environment:
+      # Point at the mlflow service on the compose network instead of the
+      # container's own local sqlite default — this is the "real tracking
+      # server" path from docs/09's Phase 1 section, now the default for
+      # the containerized API rather than something opted into by hand.
+      MLFLOW_TRACKING_URI: http://mlflow:5000
+    volumes:
+      # Rebuildable-but-slow-to-regenerate artifacts persisted across
+      # container restarts, same split as .gitignore documents for local
+      # dev (data/faiss, caches, audit records are not source).
+      - api_faiss:/srv/data/faiss
+      - api_retrieval_cache:/srv/data/retrieval_cache
+      - api_step5_cache:/srv/data/step5_cache
+      - api_audit_log:/srv/data/audit_log
+    depends_on:
+      - mlflow
+    restart: unless-stopped
+
 volumes:
   mlflow_data:
+  api_faiss:
+  api_retrieval_cache:
+  api_step5_cache:
+  api_audit_log:

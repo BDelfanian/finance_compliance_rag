@@ -11,8 +11,30 @@ EXPOSE 5000
 # "real store" (Postgres + S3/Azure/GCS) is future work (docs/10 §3.2), not
 # needed to get a real `mlflow server` process proxying artifact access
 # (which is what makes "mlflow-artifacts:" URIs resolve).
+# --allowed-hosts: mlflow's own DNS-rebinding protection (added in a recent
+# release) rejects any Host header not matching "localhost" or a private-IP
+# pattern by default — which excludes the Docker Compose service name
+# "mlflow" the api container actually connects through
+# (MLFLOW_TRACKING_URI=http://mlflow:5000 in docker-compose.yml). Confirmed
+# live: without this flag, every API request to MLflow 403s with "Invalid
+# Host header - possible DNS rebinding attack detected" before any run is
+# ever logged. The match (mlflow/server/security_utils.py's
+# is_allowed_host_header) is exact-string unless a pattern contains "*", and
+# the client's Host header includes the port ("mlflow:5000") — a bare
+# "mlflow" entry, confirmed live, does NOT match "mlflow:5000", so this
+# needs the "mlflow:*" wildcard form, not just the hostname.
+#
+# --allowed-hosts REPLACES mlflow's default allowlist rather than extending
+# it — confirmed live the same way: an earlier version of this list without
+# "127.0.0.1" broke browser/host access to the mapped port
+# (http://localhost:5000, e.g. the MLflow UI or `docker compose port`-based
+# tooling) with the same 403, even though that's exactly the access pattern
+# mlflow's own *default* allowlist exists to support. So this list has to be
+# "mlflow" plus mlflow's own defaults reproduced, not just "mlflow" appended
+# to nothing.
 CMD ["mlflow", "server", \
      "--host", "0.0.0.0", \
      "--port", "5000", \
      "--backend-store-uri", "sqlite:////mlflow/mlflow.db", \
-     "--default-artifact-root", "/mlflow/artifacts"]
+     "--default-artifact-root", "/mlflow/artifacts", \
+     "--allowed-hosts", "mlflow:*,mlflow,localhost:*,localhost,127.0.0.1:*,127.0.0.1"]

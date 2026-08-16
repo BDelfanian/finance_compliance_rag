@@ -82,6 +82,18 @@ class Settings(BaseSettings):
     # -------------------------------
     model_version: str = "gpt-4.1"
 
+    # -------------------------------
+    # API (app/api.py) — Phase 3
+    # -------------------------------
+    # Completed orchestrator runs are persisted here (one JSON file per
+    # trace_id) so GET /query/{trace_id} survives an API process restart —
+    # a lightweight stand-in for the roadmap's durable audit log (§3.3),
+    # not the full SQLite/Postgres table proposed there.
+    audit_log_path: Path = Path("data/audit_log")
+    # Origins allowed to call the API cross-origin, e.g. a local Vite dev
+    # server for the future TypeScript UI (roadmap §3.4).
+    api_cors_origins: list[str] = ["http://localhost:5173"]
+
     def resolved(self, path: Path) -> Path:
         """Repo-root-relative paths resolved to absolute, so behavior doesn't
         depend on the caller's current working directory."""

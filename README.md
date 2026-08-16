@@ -25,11 +25,10 @@ See [docs/09_current_state_and_known_issues.md](docs/09_current_state_and_known_
 for an accurate, code-verified snapshot of what's implemented, what's dead/unused
 code left over from earlier iterations, and known gaps.
 
-Phase 1 (observability foundation — structured logging, trace IDs, centralized
-config, a Dockerized MLflow tracking server, params/metrics logging) is
-complete. Next planned work — an evaluation framework, a TypeScript UI on a
-new API layer, more regulatory sources, and further MLflow richness (model/
-prompt registry, CI-gated eval) — is proposed in
+Phases 1–3 (observability foundation, evaluation framework, and a FastAPI
+layer over the orchestrator) are complete. Next planned work — a TypeScript
+frontend on top of the new API, more regulatory sources, and further MLflow
+richness (model/prompt registry) — is proposed in
 [docs/10_improvement_roadmap.md](docs/10_improvement_roadmap.md).
 
 ## Regulatory sources covered
@@ -56,9 +55,17 @@ MultiAgentOrchestrator (src/orchestrator/multi_agent_orchestrator.py)
     ▼
 Aggregated response (answer + summary + risk + fused confidence + audit trail)
     │
+    ├──▶ FastAPI service (app/api.py) — POST /query, /query/stream (SSE), GET /query/{trace_id}
+    │
     ▼
 Streamlit UI (src/ui/step6_read_only_ui.py) / MLflow lineage (src/chains/step6_agent_wrappers_mlflow.py)
 ```
+
+`MultiAgentOrchestrator` and the live Streamlit UI both call into
+`src/chains/step6_agent_wrappers_mlflow.py`'s MLflow-wrapped agent chains
+(the orchestrator directly since Phase 3; the UI has not yet switched to
+calling the API — see `docs/09`'s known issues) — one shared chain layer,
+not two independently-maintained ones.
 
 Agents are plain async Python functions wrapped as LangChain `RunnableLambda`s
 purely for a consistent execution interface — **no orchestration logic lives in
@@ -96,9 +103,34 @@ streamlit run src/ui/step6_read_only_ui.py
 # Retrieval-only UI with CSV/PDF export
 streamlit run src/ui/ui_rag_full_advanced.py
 
+# FastAPI service (POST /query, POST /query/stream, GET /query/{trace_id}, GET /health)
+uvicorn app.api:app --reload --port 8000
+# Interactive API docs: http://localhost:8000/docs
+
 # Tests
 pytest src/tests -v
 ```
+
+### Running the API in Docker
+
+```bash
+docker compose -f docker/docker-compose.yml up -d --build mlflow api
+curl http://localhost:8000/health
+```
+
+Brings up the API alongside a real MLflow tracking server on the same
+Docker network (`MLFLOW_TRACKING_URI=http://mlflow:5000` is set for the `api`
+service in `docker-compose.yml`); `data/faiss`, the retrieval/step5 caches,
+and `data/audit_log` persist across restarts via named volumes.
+
+### Regenerating the TypeScript API contract
+
+```bash
+python -m app.export_openapi        # writes client/openapi.json
+cd client && npm install && npm run generate   # writes client/api-types.ts
+```
+
+See [client/README.md](client/README.md).
 
 First run of retrieval/generation builds FAISS indexes from
 `data/processed/chunks/*.json` and calls OpenAI for embeddings — this requires
