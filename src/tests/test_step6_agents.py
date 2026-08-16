@@ -104,12 +104,17 @@ async def test_retrieval_agent_no_results(monkeypatch):
 
 @pytest.mark.asyncio
 async def test_citation_agent_returns_structured_output(monkeypatch):
-    # Patch cached generation
+    # Patch cached generation. Answer text cites REG-1 inline but not REG-2,
+    # so citations must come back as only the cited subset while
+    # retrieved_chunks (top-level) keeps the full set.
     monkeypatch.setattr(
         "src.agents.citation_agent.generate_citation_bound_answer_cached",
         lambda query_text, top_k=5: {
-            "answer": "Test answer",
-            "retrieved_chunks": [{"source_id": "REG-1", "excerpt": "Test chunk"}],
+            "answer": "Entities must disclose X [REG-1].",
+            "retrieved_chunks": [
+                {"source_reference": "REG-1", "excerpt": "Test chunk"},
+                {"source_reference": "REG-2", "excerpt": "Unused chunk"},
+            ],
             "answer_confidence": 0.8,
             "timestamp": "2026-01-03T00:00:00"
         }
@@ -118,10 +123,32 @@ async def test_citation_agent_returns_structured_output(monkeypatch):
     result = await ca.citation_agent("test query", {"retrieved_chunks": []})
     agent_result = result["agent_result"]
 
-    assert agent_result["answer"] == "Test answer"
-    assert agent_result["citations"][0]["source_id"] == "REG-1"
+    assert agent_result["answer"] == "Entities must disclose X [REG-1]."
+    assert [c["source_reference"] for c in agent_result["citations"]] == ["REG-1"]
     assert agent_result["confidence"] == 0.8
     assert "timestamp" in result  # timestamp is still top-level
+    assert len(result["retrieved_chunks"]) == 2  # full retrieved set preserved
+
+
+@pytest.mark.asyncio
+async def test_citation_agent_no_citations_when_answer_uses_none(monkeypatch):
+    # A correct "no answer found" response cites nothing — that must produce
+    # an empty citations list, not the full retrieved set.
+    monkeypatch.setattr(
+        "src.agents.citation_agent.generate_citation_bound_answer_cached",
+        lambda query_text, top_k=5: {
+            "answer": "Information not available in retrieved sources.",
+            "retrieved_chunks": [{"source_reference": "REG-1", "excerpt": "chunk"}],
+            "answer_confidence": 0.3,
+            "timestamp": "2026-01-03T00:00:00"
+        }
+    )
+
+    result = await ca.citation_agent("test query", {"retrieved_chunks": []})
+    agent_result = result["agent_result"]
+
+    assert agent_result["citations"] == []
+    assert len(result["retrieved_chunks"]) == 1
 
 
 # -------------------------------
@@ -291,7 +318,10 @@ async def test_orchestrator_fail_fast_missing_retrieval(monkeypatch):
 
 
 @pytest.mark.asyncio
-async def test_orchestrator_fail_fast_missing_citations(monkeypatch):
+async def test_orchestrator_fail_fast_missing_citation_answer(monkeypatch):
+    # "citations" now means "what the LLM cited", so an empty citations list
+    # alone is a legitimate outcome, not a failure signal — the orchestrator
+    # must instead gate on the citation agent failing to produce an answer.
     async def mock_retrieval_chain_fn(query: str):
         return {
             "agent_result": {"agent_name": "retrieval", "answer": "mock", "citations": [], "confidence": 1.0, "warnings": []},
@@ -302,7 +332,7 @@ async def test_orchestrator_fail_fast_missing_citations(monkeypatch):
         return {
             "agent_result": {
                 "agent_name": "citation",
-                "answer": "text",
+                "answer": "",
                 "citations": [],
                 "confidence": 0.9,
                 "warnings": [],

@@ -1,8 +1,8 @@
 # Improvement Roadmap & Restructuring Plan
 
-**Status:** Phase 0 applied (staged in the working tree, not committed, not
-yet executed/tested — see `docs/09_current_state_and_known_issues.md` for
-exactly what changed and what's still open). Phases 1–6 remain proposals.
+**Status:** Phases 0 and 1 are complete (executed, tested, and verified live
+— see `docs/09_current_state_and_known_issues.md` for exactly what changed).
+Phases 2–6 remain proposals.
 
 ## 1. Purpose
 
@@ -64,9 +64,24 @@ Concrete actions:
 
 ### 3.2 Full MLflow application
 
+**Status (2026-08-16, Phase 1 complete): tracking server (Docker), params,
+and metrics are done.** `docker/docker-compose.yml` + `docker/Dockerfile.mlflow`
+bring up a real `mlflow server` (sqlite-backed, single-node — not the
+Postgres/S3 "real store" described below, which is still future work).
+`src/config.py`'s `mlflow_tracking_uri` switches between it and the local
+default with one env var. `step6_agent_wrappers_mlflow.py` now logs params
+(`embedding_model`, `llm_model`, `similarity_threshold`, `k_nearest`,
+`citation_top_k`) and metrics (`confidence`, `latency_seconds`,
+`warnings_count`) on every run, and nests all four agent runs for one query
+under a single parent run (`traced_query_run`, tagged with `trace_id`) — see
+docs/09's "Fixed" section for what was verified live, including against the
+real Dockerized server. Still open: Postgres/S3 backing store, separate
+experiments per purpose (retrieval-eval / generation-eval / production),
+model/prompt registry, and CI integration.
+
 Today, MLflow is used narrowly: `src/chains/step6_agent_wrappers_mlflow.py`
 logs each agent's I/O as a JSON artifact per run, against a local SQLite file
-(`mlflow.db`) that's committed to git. "Full" MLflow means:
+(`mlflow.db`, gitignored as of Phase 0). "Full" MLflow means:
 
 - **Tracking server**: run `mlflow server` (Docker, see §3.6) backed by a
   real store (Postgres for metadata, S3/local filesystem or Azure/GCS for
@@ -92,20 +107,30 @@ logs each agent's I/O as a JSON artifact per run, against a local SQLite file
 
 ### 3.3 Full logging & traceability
 
-Current state: `print()` for MLflow logging failures, no structured logs, no
-request correlation across agents, and the only persistent trace of a query
-is whatever ends up in `data/retrieval_logs/`, `query_history.json`, and the
-per-stage caches — three overlapping, inconsistent places.
+**Status (2026-08-16): structured logging + trace ID done; the rest of this
+section (OTel spans, durable audit log, LLM observability tool) is still
+proposal only.** `src/observability/logging_config.py` now provides JSON log
+output and a `contextvars`-based `trace_id` generated once per query (in
+`MultiAgentOrchestrator.run()` and in the live UI at form submission),
+included in every structured log line, `audit_trail["trace_id"]`, and tagged
+on every MLflow run. See `docs/09_current_state_and_known_issues.md`'s
+"Fixed (2026-08-16)" section for what was verified. `print()` in
+`step6_agent_wrappers_mlflow.py` was replaced; other `print()` call sites (if
+any remain elsewhere) were not audited in this pass.
 
-Proposed:
+Originally proposed, now partially done:
 - **Structured logging**: Python `logging` configured for JSON output
   (`python-json-logger` or stdlib `logging.config` + a JSON formatter), one
-  logger per module, replacing all `print()` calls.
+  logger per module, replacing all `print()` calls. ✅ done via stdlib
+  `logging` (no new dependency), scoped to the app's own logger namespace.
 - **Trace/correlation ID**: generate one `trace_id` per user query in the
   orchestrator, thread it through every agent call and every retrieval/LLM
   call, and include it in every log line and MLflow run tag. This is what
   lets you answer "show me everything that happened for this one query"
-  across logs, MLflow, and cache files.
+  across logs, MLflow, and cache files. ✅ done, via a contextvar rather than
+  threading it as an explicit parameter through every agent signature —
+  works because `asyncio.gather()` and `asyncio.run()` both propagate the
+  current `contextvars.Context` into spawned tasks.
 - **OpenTelemetry spans**: wrap each agent (`retrieval`, `citation`,
   `summarization`, `risk_assessment`) and each external call (OpenAI
   embedding, OpenAI chat completion, FAISS search) in an OTel span, exported
@@ -204,12 +229,15 @@ manual polling burden.
   further), `pytest`, and the eval suite on every PR. Fail the build on a
   retrieval/generation regression against golden queries, not just on test
   failure.
-- **Centralized config**: a `pydantic-settings`-based `Settings` object
-  replacing the scattered module-level constants (`VECTOR_DIM`,
-  `SIMILARITY_THRESHOLD`, `K_NEAREST`, `CACHE_DIR`, cache paths duplicated
-  across `run_embeddings_retrieval.py` and `citation_bound_answer_generation.py`).
-  One source of truth, environment-overridable, and it's what the API layer
-  and eval framework will both need anyway.
+- ~~**Centralized config**~~ ✅ done 2026-08-16: `src/config.py`'s
+  `pydantic-settings`-based `Settings` (`get_settings()`, `lru_cache`d)
+  replaced the scattered module-level constants (`VECTOR_DIM`,
+  `SIMILARITY_THRESHOLD`, `K_NEAREST`, cache paths, model names) across
+  `run_embeddings_retrieval.py`, `citation_bound_answer_generation.py`, and
+  `step6_agent_wrappers_mlflow.py`. Every field is environment-overridable
+  (loads `.env` automatically — no more manually exporting `OPENAI_API_KEY`
+  before running tests/scripts) and documented in `.env.example`. Still true:
+  this is what the future API layer and eval framework will both need.
 - **Prompt versioning**: move the citation-bound prompt out of the inline
   f-string in `generate_citation_bound_answer` into a versioned template file
   (e.g. `prompts/citation_bound_v1.md`), referenced by version string that
@@ -287,7 +315,7 @@ finance_compliance_rag/
 | Phase | Goal | Key deliverables | Depends on |
 |---|---|---|---|
 | **0. Cleanup & hygiene** ✅ | Stable foundation | Fixed broken/inconsistent imports, deleted stub files, consolidated 5 UIs → 2, `pyproject.toml`, `.gitignore` for data artifacts, `.env.example` | — |
-| **1. Observability foundation** | See what the system is doing | Structured logging, trace IDs, centralized config, MLflow tracking server (Docker), params/metrics logging | Phase 0 |
+| **1. Observability foundation** ✅ | See what the system is doing | Structured logging, trace IDs, centralized config, MLflow tracking server (Docker), params/metrics logging | Phase 0 |
 | **2. Evaluation framework** | Make quality measurable | Expanded golden queries, retrieval + generation metrics, CI gate, MLflow eval experiment | Phase 1 |
 | **3. API layer** | Decouple UI from pipeline | FastAPI service, typed schemas, streaming endpoint, OpenAPI → TS client generation | Phase 0 |
 | **4. TypeScript UI** | Real frontend | React+TS app: query, agent-by-agent results, audit/history view | Phase 3 |
@@ -318,10 +346,12 @@ sources come with eval coverage immediately) but doesn't strictly require it.
 
 ## 7. Suggested immediate next step
 
-Phase 0 is applied — see `docs/09_current_state_and_known_issues.md` for the
-full list of what changed. It has **not been run** (no Python environment was
-available during the cleanup), so the actual next step is: install
-(`pip install -e ".[dev]"`), run `pytest`, launch both Streamlit UIs, and fix
-whatever surfaces. Only after that's green is it worth reviewing and
-committing, then moving to Phase 1 (observability) and/or Phase 3 (API layer,
-which can start in parallel).
+Phases 0 and 1 are done, tested, and verified live — see
+`docs/09_current_state_and_known_issues.md` for the full list of what
+changed and what's still open (notably: `MultiAgentOrchestrator` vs. the live
+UI using different chain paths, and dependency versions still unpinned).
+Next up: **Phase 2 (evaluation framework)** — expand `golden_queries.json`
+beyond its current 2 entries, add generation-quality metrics
+(faithfulness/citation-accuracy), and wire eval runs into the new MLflow
+tracking server as their own experiment. Phase 3 (API layer) can start in
+parallel if a TypeScript UI becomes a priority sooner.

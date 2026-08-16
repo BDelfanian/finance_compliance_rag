@@ -15,6 +15,9 @@ from datetime import datetime
 import streamlit as st
 
 from src.chains import step6_agent_wrappers_mlflow as wrappers
+from src.observability.logging_config import get_logger, new_trace_id, trace_id_scope
+
+logger = get_logger(__name__)
 
 st.set_page_config(page_title="Finance Compliance RAG", page_icon="📋", layout="wide")
 
@@ -87,7 +90,8 @@ def render_entry(entry: dict) -> None:
     risk_result = entry["risk_result"]
     agent_citation = citation_result["agent_result"]
 
-    st.caption(f"Asked {entry['timestamp']}")
+    trace_note = f" · trace `{entry['trace_id']}`" if entry.get("trace_id") else ""
+    st.caption(f"Asked {entry['timestamp']}{trace_note}")
     st.markdown(f"> {entry['query']}")
 
     st.subheader("Answer")
@@ -95,7 +99,11 @@ def render_entry(entry: dict) -> None:
     st.markdown(confidence_badge(agent_citation.get("confidence", 0.0)))
 
     st.subheader("Sources")
-    render_citations(agent_citation.get("citations", []), agent_citation.get("answer", ""))
+    # citation_result["retrieved_chunks"] is the full retrieved set;
+    # agent_citation["citations"] is now the narrower subset the LLM actually
+    # cited (see citation_agent._extract_cited_chunks) — render_citations
+    # wants the full set so it can label each source cited vs. uncited.
+    render_citations(citation_result.get("retrieved_chunks", []), agent_citation.get("answer", ""))
 
     col1, col2 = st.columns(2)
     with col1:
@@ -135,37 +143,45 @@ with st.form("query_form"):
     submitted = st.form_submit_button("Submit", type="primary")
 
 if submitted and query.strip():
+    trace_id = new_trace_id()
     with st.status("Processing query…", expanded=True) as status:
         try:
-            status.write("🔎 Retrieving relevant regulatory chunks…")
-            retrieval_result = asyncio.run(wrappers.retrieval_chain.ainvoke({"query": query}))
+            with trace_id_scope(trace_id), wrappers.traced_query_run(trace_id, query):
+                logger.info("query submitted", extra={"query": query})
 
-            status.write("✍️ Generating citation-bound answer…")
-            citation_result = asyncio.run(wrappers.citation_chain.ainvoke({
-                "query": query,
-                "retrieval_result": retrieval_result,
-            }))
-            agent_citation = citation_result["agent_result"]
+                status.write("🔎 Retrieving relevant regulatory chunks…")
+                retrieval_result = asyncio.run(wrappers.retrieval_chain.ainvoke({"query": query}))
 
-            status.write("📝 Summarizing…")
-            summary_result = asyncio.run(wrappers.summarization_chain.ainvoke({
-                "citation_result": agent_citation,
-            }))
+                status.write("✍️ Generating citation-bound answer…")
+                citation_result = asyncio.run(wrappers.citation_chain.ainvoke({
+                    "query": query,
+                    "retrieval_result": retrieval_result,
+                }))
+                agent_citation = citation_result["agent_result"]
 
-            status.write("⚠️ Assessing risk…")
-            risk_result = asyncio.run(wrappers.risk_assessment_chain.ainvoke({
-                "citation_result": agent_citation,
-                "retrieval_result": retrieval_result,
-            }))
+                status.write("📝 Summarizing…")
+                summary_result = asyncio.run(wrappers.summarization_chain.ainvoke({
+                    "citation_result": agent_citation,
+                }))
+
+                status.write("⚠️ Assessing risk…")
+                risk_result = asyncio.run(wrappers.risk_assessment_chain.ainvoke({
+                    "citation_result": agent_citation,
+                    "retrieval_result": retrieval_result,
+                }))
+
+                logger.info("query completed", extra={"query": query})
 
             status.update(label="Done", state="complete", expanded=False)
         except Exception as e:
+            logger.error("query failed", extra={"query": query}, exc_info=True)
             status.update(label="Failed", state="error", expanded=True)
             st.error(f"Something went wrong processing this query: {e}")
             st.stop()
 
     entry = {
         "query": query,
+        "trace_id": trace_id,
         "retrieval_result": retrieval_result,
         "citation_result": citation_result,
         "summary_result": summary_result,

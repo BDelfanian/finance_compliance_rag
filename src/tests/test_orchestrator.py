@@ -126,12 +126,18 @@ async def test_fail_fast_on_missing_retrieval(monkeypatch):
 
 
 @pytest.mark.asyncio
-async def test_fail_fast_on_missing_citations(monkeypatch):
+async def test_fail_fast_on_missing_citation_answer(monkeypatch):
+    """
+    The orchestrator gates on the citation agent producing a real answer,
+    not on a non-empty "citations" list — "citations" now means "chunks the
+    LLM actually cited" (see citation_agent._extract_cited_chunks), so an
+    empty list is a legitimate outcome, not a failure signal.
+    """
     async def bad_citation_chain_fn(payload: dict):
         return {
             "agent_result": {
                 "agent_name": "citation",
-                "answer": "text",
+                "answer": "",
                 "citations": [],
                 "confidence": 0.9,
                 "warnings": [],
@@ -148,3 +154,35 @@ async def test_fail_fast_on_missing_citations(monkeypatch):
 
     with pytest.raises(RuntimeError):
         await orchestrator.run("test query")
+
+
+@pytest.mark.asyncio
+async def test_no_fail_fast_on_empty_citations_with_real_answer(monkeypatch):
+    """
+    An answer like "Information not available in retrieved sources." with
+    zero cited chunks must flow through, not raise — it's the risk agent's
+    job to warn on sparse citations, not the orchestrator's job to reject.
+    """
+    async def uncited_citation_chain_fn(payload: dict):
+        return {
+            "agent_result": {
+                "agent_name": "citation",
+                "answer": "Information not available in retrieved sources.",
+                "citations": [],
+                "confidence": 0.4,
+                "warnings": [],
+            },
+            "retrieved_chunks": payload["retrieval_result"]["retrieved_chunks"],
+            "timestamp": "2026-01-03T00:00:00",
+        }
+
+    from src.orchestrator import multi_agent_orchestrator as mao
+    monkeypatch.setattr(mao, "retrieval_chain", make_chain(mock_retrieval_chain_fn))
+    monkeypatch.setattr(mao, "citation_chain", make_chain(uncited_citation_chain_fn))
+    monkeypatch.setattr(mao, "summarization_chain", make_chain(mock_summarization_chain_fn))
+    monkeypatch.setattr(mao, "risk_assessment_chain", make_chain(mock_risk_chain_fn))
+
+    orchestrator = MultiAgentOrchestrator(model_version="test-model")
+
+    result = await orchestrator.run("test query")
+    assert result["answer"]["citations"] == []

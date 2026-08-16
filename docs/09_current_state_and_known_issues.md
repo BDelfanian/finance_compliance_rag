@@ -16,6 +16,11 @@ summarization → risk assessment. Two **additional real bugs** were found
 this way — by execution, not static reading — and fixed; see
 §"Resolved by running the app" below.
 
+**Update (Phase 1 complete, 2026-08-16):** the citation-semantics gap, MLflow
+logging, structured logging/trace IDs, centralized config, and a Dockerized
+MLflow tracking server are all done — see §"Phase 1 (Observability
+foundation) — complete" below. 31/31 tests pass.
+
 ## Repository map (current)
 
 ```
@@ -26,6 +31,8 @@ src/
   generation/            STEP 5 citation-bound answer generation (GPT-5 mini)
   retrieval/             STEP 4 embeddings + FAISS retrieval
   chunking/               Active chunking pipeline (cssf/dora/eba), registry-driven
+  observability/           Structured logging + trace-ID context (logging_config.py) — Phase 1
+  config.py                Centralized pydantic-settings Settings — Phase 1
   ui/                      Two Streamlit UIs (step6_read_only_ui.py, ui_rag_full_advanced.py)
   tests/                   pytest suite for retrieval, agents, orchestrator, MLflow lineage
 archive/                   Superseded/dead code and data, kept for reference, not imported by anything active
@@ -36,9 +43,11 @@ archive/                   Superseded/dead code and data, kept for reference, no
 data/
   raw/                     Source PDFs (CSSF, DORA, EBA, GDPR) — tracked in git
   processed/               Extracted text + chunks — tracked in git
-  faiss/, retrieval_cache/, step5_cache/, retrieval_logs/  — gitignored, rebuilt on first run
+  faiss/, retrieval_cache/, step5_cache/, retrieval_logs/, mlflow_artifacts/ — gitignored, rebuilt on first run
+docker/                    Dockerfile.mlflow + docker-compose.yml — optional MLflow tracking server — Phase 1
 docs/                      Design docs (00–08) + this file + decision log + roadmap
 pyproject.toml              Single packaging/dependency source of truth (replaces setup.py + requirements.txt)
+.env.example                Documents every src/config.py Settings field — Phase 1
 ```
 
 `agents/` and `app/` (top-level, empty stub files) no longer exist — deleted.
@@ -202,27 +211,192 @@ reading the output (not just checking it rendered) surfaced two more bugs:
    bracket in the answer text) that now labels each source "✓ cited in
    answer" or "retrieved, not directly cited."
 
-## Known issue surfaced but NOT fixed: citation coverage is structurally
-## unable to distinguish "cited" from "retrieved"
+## Resolved by running a real query and reading the answer (2026-08-16, part 2)
 
-Item 3 above is a UI-layer workaround for a deeper problem: `citation_agent.py`
-sets `AgentResult["citations"]` to the full list of retrieved chunks handed to
-the LLM, not the subset the LLM actually referenced in its answer. That same
-`"citations"` field is what `risk_assessment_agent.py` compares against
-`retrieval_result`'s chunks to detect "partial regulatory coverage" — but
-since both sides are effectively the same set by construction, that warning
-is structurally unable to fire (independent of the earlier `documents` vs
-`retrieved_chunks` key-name bug already fixed in Phase 0). Concretely: on the
-query above, the UI now visibly shows 3 uncited sources, but Risk Assessment
-still says "No material regulatory risks detected" — a real, visible
-contradiction. **Not fixed here** because the correct fix (deriving
-`"citations"` from what the LLM actually referenced, e.g. by parsing its
-answer text similarly to the new UI heuristic, or having the LLM return
-structured citations) changes a field's meaning that the orchestrator also
-uses for fail-fast gating (`multi_agent_orchestrator.py`'s
-`if not agent_citation.get("citations"): raise RuntimeError(...)`), so it
-needs its own deliberate pass rather than a quick patch alongside a UI
-polish task.
+While verifying the citation-semantics fix below, the user ran *"What are the
+reporting obligations for major ICT-related incidents under DORA?"* through
+the live UI and flagged the Executive Summary as inconsistent with the
+Answer above it. Investigating (not just re-reading the diff) found the real
+bug wasn't in the citation-semantics work at all:
+
+- **`summarization_agent._clean_answer_text`'s dash-normalization regex
+  silently merged a heading into the next paragraph.** Step 1 of the
+  function (`re.sub(r"\s+[–—-]\s+", " ", answer)`) was meant to collapse an
+  *inline* artifact like `". - Sentence"` onto one line, but `\s+` also
+  matches newlines — so an LLM answer shaped like
+  `"Summary of X\n\n- Who must report: ..."` had its blank-line-plus-bullet-dash
+  collapsed into `"Summary of X Who must report: ..."` *before* the
+  line-splitting loop ever ran, erasing the paragraph break the heading-drop
+  logic depended on. The rendered Executive Summary read
+  *"...under DORA Who must report: all financial entities..."* — heading and
+  first sentence fused with no punctuation between them. Fixed by narrowing
+  the regex to `[ \t]+[–—-][ \t]+` (horizontal whitespace only, no
+  newlines), so it still normalizes same-line dash artifacts without
+  spanning line breaks. Also hardened the heading-drop check itself (it only
+  caught headings ending in `:`) to also drop a bare title line with no
+  sentence-ending punctuation at all, as defense in depth.
+  **Verified live**: re-ran the same query through `streamlit.testing.v1.AppTest`
+  before and after — Executive Summary now starts
+  *"Who must report: all financial entities must report..."* instead of the
+  fused heading.
+- The citation/retrieval side of that same query turned out **not** to be a
+  bug: only 2 chunks were retrieved total (both DORA; nothing crossed the
+  0.55 similarity threshold for CSSF/EBA), and the LLM cited both — so
+  `citations == retrieved_chunks` there is the correct outcome of nothing
+  going uncited, not a regression of the fix below.
+
+## Phase 1 (Observability foundation) — complete, 2026-08-16
+
+All five `docs/10` Phase 1 deliverables — structured logging, trace IDs,
+centralized config, a Dockerized MLflow tracking server, params/metrics
+logging — are done, together with the citation-semantics fix that motivated
+this phase. Everything below was verified by actually running the app (live
+queries through the UI, the orchestrator, and a real Docker container), not
+by reading the diff.
+
+### Citation semantics: "citations" now means "cited," not "retrieved"
+
+`citation_agent.py` used to set `AgentResult["citations"]` to the *entire*
+list of retrieved chunks handed to the LLM, not the subset it actually
+referenced. That's the deeper bug behind the UI workaround described above
+(`_is_cited_in_answer`): `risk_assessment_agent.py` compares `citations`
+against `retrieval_result`'s chunks to detect "partial regulatory coverage,"
+but since both sides were the same set by construction, that warning was
+structurally unable to fire. Confirmed live before the fix: the UI showed 3
+uncited DORA sources while Risk Assessment still said "No material
+regulatory risks detected" — a visible contradiction.
+
+Fixed:
+- `citation_agent._extract_cited_chunks` filters `retrieved_chunks` down to
+  the ones whose `source_reference` literally appears inside a `[...]`
+  bracket in the answer text (the heuristic the UI used to duplicate as
+  `_is_cited_in_answer`, now removed from the UI). The full retrieved set is
+  still returned separately (`citation_agent`'s top-level `"retrieved_chunks"`
+  key) for anything downstream — including the UI's Sources list — that
+  needs the complete picture.
+- `multi_agent_orchestrator.py`'s fail-fast changed from "citations list is
+  non-empty" to "the citation agent produced an answer" — an empty citations
+  list is now a legitimate outcome (e.g. "Information not available in
+  retrieved sources" correctly cites nothing), not proof of failure.
+- **Verified live**: re-running the management-body/DORA/CSSF/EBA query now
+  correctly fires "Partial regulatory coverage" when sources go uncited, and
+  a narrower DORA-only query that cites everything it retrieves correctly
+  shows zero warnings (63% confidence, both sources cited) — both sides of
+  the same logic now behave as designed.
+
+### MLflow logging: fixed, then hardened with a real tracking server
+
+Root cause: mlflow's SQLite-backed tracking store creates new experiments
+with `artifact_location = "mlflow-artifacts:/<id>"` by default — a scheme
+that only resolves through a running `mlflow server` proxy. Confirmed via
+direct inspection of `mlflow.db`: the pre-existing `Default`/
+`STEP6_RAG_Agents*` experiments all had this broken location, so every run
+was silently failing, swallowed by a bare `except Exception: print(...)`.
+
+Fixed in two layers:
+1. **Local fallback** (works with zero setup): `step6_agent_wrappers_mlflow.py`
+   gets-or-creates a dedicated `finance_compliance_rag_agents` experiment
+   with an explicit local filesystem artifact root (`data/mlflow_artifacts/`,
+   gitignored) whenever no real tracking server is configured. Pre-existing
+   broken experiments are left untouched (their artifact_location can't be
+   changed after creation anyway). Also fixed: the temp JSON file written per
+   logged run was never deleted (`os.unlink` added).
+2. **Real tracking server, Dockerized** (opt-in): `docker/Dockerfile.mlflow` +
+   `docker/docker-compose.yml` bring up an actual `mlflow server`
+   (sqlite-backed, single-node — the roadmap's Postgres/S3 "real store" is
+   still future work, §3.2). `Settings.mlflow_tracking_uri` switches between
+   the two with one env var; `_ensure_experiment`'s `_is_remote_tracking_uri`
+   branch skips the local-artifact-root workaround when talking to a real
+   server, since the server resolves `mlflow-artifacts:` itself.
+- **Verified live, both paths**: local fallback — driving the UI end-to-end
+  logs 4 `FINISHED` runs to `data/mlflow_artifacts/`. Docker path — started
+  Docker Desktop, `docker compose up -d --build`, confirmed `/health`
+  responded, then ran a real query with
+  `MLFLOW_TRACKING_URI=http://localhost:5000` and confirmed all runs
+  `FINISHED` with `experiment.artifact_location` resolving through the real
+  server's own artifact proxy.
+
+### Structured logging, trace IDs, and an MLflow run tree
+
+New `src/observability/logging_config.py`: JSON log lines under the app's
+own `finance_compliance_rag.*` logger namespace (doesn't hijack third-party
+library logging), with a `trace_id` bound via `contextvars` — threaded
+automatically through every log line and MLflow tag for one query without
+changing any agent function signature. Generated once per query, in both
+`MultiAgentOrchestrator.run()` and the live UI (at form submission — the UI
+is the de facto "orchestrator" for the path actually exercised by users,
+since `MultiAgentOrchestrator` isn't wired into either UI; see the known
+issue below), included in `audit_trail["trace_id"]`, and shown in the UI
+under each history entry ("Asked ... · trace `...`").
+
+Also added `traced_query_run`: a context manager wrapping one query's full
+agent sequence in a parent MLflow run tagged with `trace_id` and the query
+text. Previously `mlflow.start_run(..., nested=True)` was a no-op — nothing
+had an active parent run to nest under, since each UI stage ran its own
+independent `asyncio.run()`. Now all 4 agent runs for one query genuinely
+nest under one parent, browsable as a run tree.
+
+**Verified live**: one `trace_id` correlated across all 4 MLflow runs and
+every structured log line for a single query (confirmed via
+`mlflow.search_runs(filter_string="tags.trace_id = ...")`).
+
+### Centralized config
+
+New `src/config.py` (`pydantic-settings`), replacing scattered constants
+(`VECTOR_DIM`, `K_NEAREST`, `SIMILARITY_THRESHOLD`, cache paths, hardcoded
+model names) across `run_embeddings_retrieval.py`,
+`citation_bound_answer_generation.py`, and `step6_agent_wrappers_mlflow.py`.
+Documented in the new `.env.example`. **Side benefit, verified live**:
+`Settings` loads `.env` automatically, so `pytest`/scripts no longer need
+`OPENAI_API_KEY` manually exported first — confirmed by running the full
+suite in a shell with the variable unset.
+
+### Params/metrics logging
+
+`log_agent_run` now logs MLflow params (`embedding_model`, `llm_model`,
+`similarity_threshold`, `k_nearest`, `citation_top_k`, sourced from
+`Settings`) and metrics (`confidence`, `latency_seconds`, `warnings_count`)
+on every run.
+
+**Two real bugs found and fixed while implementing this**, both from
+assuming a payload shape that only 2 of the 4 agents actually have —
+`retrieval_agent`/`citation_agent` wrap their output as
+`{"agent_result": {...}, ...}`, but `summarization_agent`/
+`risk_assessment_agent` return the flat `AgentResult` dict directly:
+- Metrics extraction read `payload.get("agent_result", {})`, silently
+  falling back to `{}` for the two flat-shape agents and logging
+  `confidence: 0.0`/`warnings_count: 0` regardless of the real values.
+  Caught by inspecting a live run's logged metrics, not by assuming the code
+  was correct. Fixed by falling back to `payload` itself.
+- The same pattern in the run-naming code meant those two agents' MLflow
+  runs were named after the Python function (`summarization_agent`) instead
+  of the real short `agent_name` (`summarization`). Fixed the same way.
+- **Verified live**: after both fixes, all 4 runs show correct per-agent
+  confidence/warnings and consistent short run names (`retrieval`,
+  `citation`, `summarization`, `risk_assessment`), nested under one parent.
+
+## Known issue: `MultiAgentOrchestrator` and the live UI use different
+## agent chains, so citation/retrieval divergence is possible
+
+Not introduced or fixed in this pass, but surfaced while fixing the above:
+`MultiAgentOrchestrator` (`src/orchestrator/multi_agent_orchestrator.py`)
+calls the plain chains in `src/orchestrator/langchain_wrappers.py`, while the
+live Streamlit UI (`step6_read_only_ui.py`) calls the separately-defined,
+MLflow-wrapped chains in `src/chains/step6_agent_wrappers_mlflow.py`. Both
+wrap the same underlying agent functions, so behavior is equivalent, but
+`MultiAgentOrchestrator` itself is currently only exercised by
+`src/tests/test_orchestrator.py` and `test_step6_agents.py`, not by either
+live UI. Separately: `citation_agent.py`'s `retrieval_result` parameter is
+unused — it calls STEP 5's `generate_citation_bound_answer_cached`, which
+does its **own independent retrieval** via `retrieve()` rather than reusing
+the `retrieval_result` passed in from the orchestrator's `retrieval_agent`
+step. In practice both calls hit the same deterministic FAISS index and
+should return the same chunks, but nothing guarantees it structurally, and
+`risk_assessment_agent`'s coverage check compares chunks from these two
+independent retrieval calls. Worth resolving alongside a future restructuring
+pass (e.g. `MultiAgentOrchestrator` becoming the one true orchestration path
+for both UIs, and `citation_agent` reusing the passed-in `retrieval_result`
+instead of re-retrieving) rather than patching in isolation.
 
 ## Known issues still open (not addressed in Phase 0)
 
@@ -248,8 +422,8 @@ polish task.
   natively supported"). This dependency was never in the old
   `requirements.txt` either, so it's unclear the async test suite ever ran
   clean before this pass.
-- **MLflow tracking/artifact URI mismatch** — see item 3 above. Silent,
-  non-fatal, but means no run is currently logged to MLflow.
+- ~~MLflow tracking/artifact URI mismatch~~ — fixed 2026-08-16, see "Phase 1
+  (Observability foundation) — complete" above.
 - **`archive/`** is new dead weight in the repo, even if clearly labeled. A
   future pass should decide whether to delete it outright (it's all still in
   git history/available via the commit before this cleanup) rather than keep

@@ -35,9 +35,15 @@ def _clean_answer_text(answer: str) -> List[str]:
     # -------------------------------
     # 1. Normalize inline bullet artifacts
     # -------------------------------
-    # Examples handled:
+    # Examples handled (same line only):
     # ". - Sentence" / ". – Sentence" / ". — Sentence"
-    normalized = re.sub(r"\s+[–—-]\s+", " ", answer)
+    # Must not span newlines: \s+ includes "\n", so a heading line followed
+    # by a blank line and a real bullet (e.g. "Summary of X\n\n- Who must
+    # report: ...") was being collapsed into "Summary of X Who must
+    # report: ..." — erasing the line boundary before the per-line loop
+    # below ever got a chance to drop the heading or treat the bullet as
+    # its own line.
+    normalized = re.sub(r"[ \t]+[–—-][ \t]+", " ", answer)
 
     lines = normalized.splitlines()
     cleaned_lines = []
@@ -49,8 +55,16 @@ def _clean_answer_text(answer: str) -> List[str]:
         if not line:
             continue
 
-        # Drop headings
+        # Drop headings: either an explicit "Heading:" line, or a bare title
+        # line with no sentence-ending punctuation at all. LLM answers
+        # commonly open with an unpunctuated title (e.g. "Summary of X")
+        # before the bullets — without this second check it has no period to
+        # split on, so it silently fuses onto the first real sentence
+        # instead of being dropped (e.g. "...under DORA Who must report:...").
+        is_bullet = line.startswith(("- ", "• ", "* "))
         if line.endswith(":"):
+            continue
+        if not is_bullet and not re.search(r"[.!?]", line):
             continue
 
         # Remove leading bullet prefixes

@@ -25,10 +25,12 @@ See [docs/09_current_state_and_known_issues.md](docs/09_current_state_and_known_
 for an accurate, code-verified snapshot of what's implemented, what's dead/unused
 code left over from earlier iterations, and known gaps.
 
-Next planned work — full MLflow tracking, structured logging/traceability, a
-TypeScript UI on a new API layer, more regulatory sources, and a restructuring
-pass — is proposed in
-[docs/10_improvement_roadmap.md](docs/10_improvement_roadmap.md) (not yet implemented).
+Phase 1 (observability foundation — structured logging, trace IDs, centralized
+config, a Dockerized MLflow tracking server, params/metrics logging) is
+complete. Next planned work — an evaluation framework, a TypeScript UI on a
+new API layer, more regulatory sources, and further MLflow richness (model/
+prompt registry, CI-gated eval) — is proposed in
+[docs/10_improvement_roadmap.md](docs/10_improvement_roadmap.md).
 
 ## Regulatory sources covered
 
@@ -102,6 +104,30 @@ First run of retrieval/generation builds FAISS indexes from
 `data/processed/chunks/*.json` and calls OpenAI for embeddings — this requires
 `OPENAI_API_KEY` and network access. Indexes and query results are then cached
 under `data/faiss/`, `data/retrieval_cache/`, and `data/step5_cache/`.
+
+## Configuration
+
+All settings (model names, retrieval thresholds, cache paths, MLflow config)
+are centralized in `src/config.py` (`pydantic-settings`), overridable via `.env`
+or real environment variables — see `.env.example` for the full list. Only
+`OPENAI_API_KEY` is required; everything else has a working default.
+
+## Observability
+
+Every query gets one `trace_id`, threaded through structured JSON logs
+(`src/observability/logging_config.py`) and tagged on every MLflow run, so a
+single ID answers "what happened for this query" across both.
+
+By default, MLflow logs locally (`mlflow.db` + `data/mlflow_artifacts/`, no
+server needed). To use a real tracking server instead:
+
+```bash
+docker compose -f docker/docker-compose.yml up -d
+# then in .env:
+# MLFLOW_TRACKING_URI=http://localhost:5000
+```
+
+Browse runs at http://localhost:5000 (or the local UI: `mlflow ui --backend-store-uri sqlite:///mlflow.db`).
 
 ## Guiding principles
 

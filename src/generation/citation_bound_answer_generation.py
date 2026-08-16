@@ -8,11 +8,13 @@ import os
 import json
 import hashlib
 from datetime import datetime
+from src.config import get_settings
 from src.retrieval.run_embeddings_retrieval import retrieve, vector_store, embed_text
 import openai
 
+settings = get_settings()
 
-CACHE_DIR = "data/step5_cache"
+CACHE_DIR = str(settings.resolved(settings.step5_cache_path))
 os.makedirs(CACHE_DIR, exist_ok=True)
 
 def get_cache_file(query_text: str) -> str:
@@ -20,7 +22,7 @@ def get_cache_file(query_text: str) -> str:
     query_hash = hashlib.md5(query_text.encode("utf-8")).hexdigest()
     return os.path.join(CACHE_DIR, f"{query_hash}.json")
 
-def generate_citation_bound_answer_cached(query_text: str, top_k: int = 5):
+def generate_citation_bound_answer_cached(query_text: str, top_k: int = settings.citation_top_k):
     """Generate or load a citation-bound answer using cache."""
     cache_file = get_cache_file(query_text)
     
@@ -41,19 +43,19 @@ def generate_citation_bound_answer_cached(query_text: str, top_k: int = 5):
 # -------------------------------
 # Configure OpenAI API Key
 # -------------------------------
-openai.api_key = os.getenv("OPENAI_API_KEY")
+openai.api_key = settings.openai_api_key
 if not openai.api_key:
     raise EnvironmentError("OPENAI_API_KEY environment variable not set")
 
 # -------------------------------
-# GPT-5 mini call
+# LLM call
 # -------------------------------
 def llm_call(prompt: str) -> str:
     """
-    Call GPT-5 mini using OpenAI >=1.0.0
+    Call the configured chat model using OpenAI >=1.0.0
     """
     response = openai.chat.completions.create(
-        model="gpt-5-mini",
+        model=settings.llm_model,
         messages=[
             {"role": "system", "content": "You are a compliance-aware AI. Answer strictly using provided source chunks."},
             {"role": "user", "content": prompt}

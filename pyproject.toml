@@ -26,6 +26,8 @@ dependencies = [
     # Orchestration
     "langchain-core",
     "mlflow",
+    # Config
+    "pydantic-settings",
     # UI
     "streamlit",
     "pandas",

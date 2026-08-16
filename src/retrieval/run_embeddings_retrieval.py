@@ -7,21 +7,25 @@ from openai import OpenAI
 import hashlib
 import pickle
 
+from src.config import get_settings
+
 # -------------------------------
 # Configuration
 # -------------------------------
-CHUNK_PATH = "data/processed/chunks/"
-VECTOR_DIM = 1536
-BATCH_SIZE = 50
-K_NEAREST = 5
-SIMILARITY_THRESHOLD = 0.55
+settings = get_settings()
 
-FAISS_PATH = "data/faiss"
-CACHE_PATH = "data/retrieval_cache"
+CHUNK_PATH = str(settings.resolved(settings.chunk_path))
+VECTOR_DIM = settings.vector_dim
+BATCH_SIZE = settings.embedding_batch_size
+K_NEAREST = settings.k_nearest
+SIMILARITY_THRESHOLD = settings.similarity_threshold
+
+FAISS_PATH = str(settings.resolved(settings.faiss_path))
+CACHE_PATH = str(settings.resolved(settings.retrieval_cache_path))
 os.makedirs(FAISS_PATH, exist_ok=True)
 os.makedirs(CACHE_PATH, exist_ok=True)
 
-client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
+client = OpenAI(api_key=settings.openai_api_key or None)
 
 # -------------------------------
 # 1. Load chunks
@@ -46,7 +50,7 @@ vector_store = {
 # -------------------------------
 def embed_batch(text_list):
     response = client.embeddings.create(
-        model="text-embedding-3-small",
+        model=settings.embedding_model,
         input=text_list
     )
     return np.array([r.embedding for r in response.data], dtype=np.float32)
@@ -191,7 +195,7 @@ def retrieve(
 if __name__ == "__main__":
     # Pre-flight checks
     def pre_flight_check():
-        if not os.getenv("OPENAI_API_KEY"):
+        if not settings.openai_api_key:
             raise EnvironmentError("OPENAI_API_KEY is not set. Please export it first.")
     
         required_files = [

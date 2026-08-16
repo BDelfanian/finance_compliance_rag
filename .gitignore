@@ -13,5 +13,6 @@ data/faiss/
 data/retrieval_cache/
 data/step5_cache/
 data/retrieval_logs/
+data/mlflow_artifacts/
 mlflow.db
 mlruns/

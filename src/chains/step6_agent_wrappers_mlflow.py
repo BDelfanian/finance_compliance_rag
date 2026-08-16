@@ -1,26 +1,132 @@
 import json
+import os
 import tempfile
-from typing import Dict, Any, Callable, Awaitable
+import time
+from contextlib import contextmanager
+from typing import Dict, Any, Callable, Awaitable, Iterator
 
 import mlflow
 from langchain_core.runnables import Runnable
 
+from src.config import get_settings
+from src.observability.logging_config import get_logger, get_trace_id
+
+logger = get_logger(__name__)
+settings = get_settings()
+
+# -------------------------------
+# MLflow setup
+# -------------------------------
+# mlflow's default tracking store (sqlite:///mlflow.db in this environment)
+# creates new experiments with an artifact_location of "mlflow-artifacts:/..."
+# by default — a scheme that only resolves through a running `mlflow server`
+# proxy. `settings.mlflow_tracking_uri` (None by default here, so mlflow's
+# own local-sqlite default is used; set it to e.g. http://localhost:5000 —
+# see docker/docker-compose.yml — to point at a real tracking server
+# instead, where "mlflow-artifacts:" resolves fine via the server's proxy).
+#
+# Without a server, every run logged against the default/pre-existing
+# experiments failed with "the tracking URI must be a valid http or https
+# URI" and was silently swallowed by the try/except below. Fix: when running
+# against a local (non-http) store, log to our own experiment with an
+# explicit local filesystem artifact root instead, so runs resolve without a
+# server. Pre-existing experiments in mlflow.db are left untouched (their
+# artifact_location can't be changed after creation anyway).
+if settings.mlflow_tracking_uri:
+    mlflow.set_tracking_uri(settings.mlflow_tracking_uri)
+
+_ARTIFACT_ROOT = settings.resolved(settings.mlflow_artifact_root)
+
+
+def _is_remote_tracking_uri(uri: str) -> bool:
+    return uri.startswith("http://") or uri.startswith("https://")
+
+
+def _ensure_experiment() -> None:
+    experiment = mlflow.get_experiment_by_name(settings.mlflow_experiment_name)
+    if experiment is None:
+        if _is_remote_tracking_uri(mlflow.get_tracking_uri()):
+            # A real `mlflow server` resolves "mlflow-artifacts:" itself via
+            # its own configured artifact store — no local override needed.
+            mlflow.create_experiment(settings.mlflow_experiment_name)
+        else:
+            _ARTIFACT_ROOT.mkdir(parents=True, exist_ok=True)
+            mlflow.create_experiment(
+                settings.mlflow_experiment_name,
+                artifact_location=_ARTIFACT_ROOT.as_uri(),
+            )
+    mlflow.set_experiment(settings.mlflow_experiment_name)
+
+
+_ensure_experiment()
+
+
+# -------------------------------
+# Per-query parent run
+# -------------------------------
+@contextmanager
+def traced_query_run(trace_id: str, query: str) -> Iterator[None]:
+    """
+    Wrap a full query's sequence of agent calls in one parent MLflow run, so
+    the four per-agent runs `log_agent_run` starts with `nested=True` are
+    genuinely nested underneath it (previously nested=True was a no-op: each
+    UI stage ran its own `asyncio.run()` with no enclosing active run to
+    nest under). One parent run per trace_id makes "everything that happened
+    for this one query" directly browsable in the MLflow UI as a run tree,
+    not just correlatable after the fact via the trace_id tag.
+    """
+    with mlflow.start_run(run_name=f"query_{trace_id[:8]}"):
+        mlflow.set_tag("trace_id", trace_id)
+        mlflow.set_tag("query", query)
+        yield
+
+
 # -------------------------------
 # MLflow Logging Helper
 # -------------------------------
-async def log_agent_run(agent_name: str, payload: Dict[str, Any]):
+async def log_agent_run(agent_name: str, payload: Dict[str, Any], latency_seconds: float):
     """
-    Logs the agent payload to MLflow in JSON format.
-    Automatically starts a run if none exists.
+    Logs the agent payload to MLflow in JSON format, plus params/metrics
+    (roadmap §3.2: "parameters, not just artifacts" / "metrics"). Nests
+    under an active run if one exists (see traced_query_run); starts a new
+    top-level run otherwise.
     """
-    # Start a nested run if already in a run; else a new run
-    with mlflow.start_run(run_name=agent_name, nested=True):
+    # retrieval/citation payloads wrap the AgentResult under "agent_result";
+    # summarization/risk_assessment payloads *are* the AgentResult directly.
+    # Falling back to `payload` itself (instead of {}) when "agent_result" is
+    # absent is what makes confidence/warnings metrics correct for all four
+    # agents instead of silently reading as 0.0 for the latter two.
+    agent_result = payload.get("agent_result", payload)
+
+    with mlflow.start_run(run_name=agent_name, nested=mlflow.active_run() is not None):
+        mlflow.set_tag("trace_id", get_trace_id())
+
+        # Params: static config that shaped this run, so runs are
+        # comparable in the MLflow UI without opening the JSON artifact.
+        mlflow.log_params({
+            "embedding_model": settings.embedding_model,
+            "llm_model": settings.llm_model,
+            "similarity_threshold": settings.similarity_threshold,
+            "k_nearest": settings.k_nearest,
+            "citation_top_k": settings.citation_top_k,
+        })
+
+        # Metrics: measured outcomes of this specific run.
+        mlflow.log_metrics({
+            "latency_seconds": round(latency_seconds, 4),
+            "confidence": float(agent_result.get("confidence", 0.0)),
+            "warnings_count": len(agent_result.get("warnings") or []),
+        })
+
         tmp_file = tempfile.NamedTemporaryFile(
             mode="w", delete=False, suffix=".json"
         )
-        json.dump(payload, tmp_file, indent=2)
-        tmp_file.close()
-        mlflow.log_artifact(tmp_file.name, artifact_path=agent_name)
+        try:
+            json.dump(payload, tmp_file, indent=2)
+            tmp_file.close()
+            mlflow.log_artifact(tmp_file.name, artifact_path=agent_name)
+        finally:
+            os.unlink(tmp_file.name)
 
 
 # -------------------------------
@@ -34,15 +140,33 @@ def wrap_agent_with_mlflow(agent_fn: Callable[..., Awaitable[Dict[str, Any]]]) -
     """
 
     async def wrapped_fn(inputs: Dict[str, Any]) -> Dict[str, Any]:
+        agent_label = getattr(agent_fn, "__name__", "unknown")
+        logger.info("agent run started", extra={"agent": agent_label})
+
         # Run the original agent
+        start = time.perf_counter()
         outputs = await agent_fn(**inputs)
+        latency_seconds = time.perf_counter() - start
+
+        # retrieval/citation payloads wrap the AgentResult under
+        # "agent_result"; summarization/risk_assessment payloads *are* the
+        # AgentResult directly — fall back to `outputs` itself so the real
+        # short agent_name ("summarization", not the function name
+        # "summarization_agent") is used for both shapes.
+        agent_name = outputs.get("agent_result", outputs).get("agent_name", agent_label)
 
         # Log to MLflow
         try:
-            await log_agent_run(agent_name=outputs.get("agent_result", {}).get("agent_name", "unknown"),
-                                payload=outputs)
-        except Exception as e:
-            print(f"MLflow logging skipped: {e}")
+            await log_agent_run(agent_name=agent_name, payload=outputs, latency_seconds=latency_seconds)
+        except Exception:
+            logger.warning(
+                "MLflow logging skipped", extra={"agent": agent_name}, exc_info=True
+            )
+
+        logger.info(
+            "agent run completed",
+            extra={"agent": agent_name, "latency_seconds": round(latency_seconds, 4)},
+        )
 
         return outputs
 
