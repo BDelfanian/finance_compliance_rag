@@ -199,7 +199,7 @@
   },
   {
     "id": "GQ_DORA_01",
-    "query": "uniform requirements for the security of network and information systems supporting financial entities' business processes",
+    "query": "In order to achieve a high common level of digital operational resilience this Regulation lays down uniform requirements",
     "vector_store_key": "dora",
     "authority": "European Union",
     "jurisdiction": "EU",
@@ -567,5 +567,104 @@
     "jurisdiction": "EU",
     "expected_chunk_ids": [],
     "type": "no_answer"
+  },
+  {
+    "id": "GQ_CSSF_19",
+    "query": "deadlines in Annex I for submitting initial notification of a major ICT-related incident",
+    "vector_store_key": "cssf",
+    "authority": "CSSF",
+    "jurisdiction": "LU",
+    "expected_chunk_ids": [
+      "cssf_24_847_para_14"
+    ],
+    "type": "standard"
+  },
+  {
+    "id": "GQ_CSSF_20",
+    "query": "definition of an ICT-related incident for the purpose of this Circular",
+    "vector_store_key": "cssf",
+    "authority": "CSSF",
+    "jurisdiction": "LU",
+    "expected_chunk_ids": [
+      "cssf_24_847_para_3"
+    ],
+    "type": "standard"
+  },
+  {
+    "id": "GQ_CSSF_21",
+    "query": "requirements for the exit strategy when terminating an outsourcing arrangement",
+    "vector_store_key": "cssf",
+    "authority": "CSSF",
+    "jurisdiction": "LU",
+    "expected_chunk_ids": [
+      "cssf_22_806_4_3_2"
+    ],
+    "type": "standard"
+  },
+  {
+    "id": "GQ_CSSF_22",
+    "query": "documentation and register of outsourcing arrangements requirements",
+    "vector_store_key": "cssf",
+    "authority": "CSSF",
+    "jurisdiction": "LU",
+    "expected_chunk_ids": [
+      "cssf_22_806_4_2_7"
+    ],
+    "type": "standard"
+  },
+  {
+    "id": "GQ_DORA_19",
+    "query": "ICT asset management policy requirements including asset inventory",
+    "vector_store_key": "dora",
+    "authority": "European Union",
+    "jurisdiction": "EU",
+    "expected_chunk_ids": [
+      "dora_rts_2024_1774_article_4"
+    ],
+    "type": "standard"
+  },
+  {
+    "id": "GQ_DORA_20",
+    "query": "requirements for cryptographic controls and encryption of data at rest and in transit",
+    "vector_store_key": "dora",
+    "authority": "European Union",
+    "jurisdiction": "EU",
+    "expected_chunk_ids": [
+      "dora_rts_2024_1774_article_6"
+    ],
+    "type": "standard"
+  },
+  {
+    "id": "GQ_DORA_21",
+    "query": "vulnerability identification and patch management procedures",
+    "vector_store_key": "dora",
+    "authority": "European Union",
+    "jurisdiction": "EU",
+    "expected_chunk_ids": [
+      "dora_rts_2024_1774_article_10"
+    ],
+    "type": "standard"
+  },
+  {
+    "id": "GQ_EBA_11",
+    "query": "allowing payment service users to disable specific payment functionalities",
+    "vector_store_key": "eba",
+    "authority": "European Banking Authority",
+    "jurisdiction": "EU",
+    "expected_chunk_ids": [
+      "eba_ict_security_paragraph_94"
+    ],
+    "type": "standard"
+  },
+  {
+    "id": "GQ_EBA_12",
+    "query": "alerts to payment service users on failed payment transaction attempts",
+    "vector_store_key": "eba",
+    "authority": "European Banking Authority",
+    "jurisdiction": "EU",
+    "expected_chunk_ids": [
+      "eba_ict_security_paragraph_96"
+    ],
+    "type": "standard"
   }
 ]

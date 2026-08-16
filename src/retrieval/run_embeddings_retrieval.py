@@ -35,14 +35,37 @@ def load_chunks(filename):
     with open(path, "r", encoding="utf-8") as f:
         return json.load(f)
 
-chunks_cssf = load_chunks("cssf_sections.json")
-chunks_dora = load_chunks("dora_articles.json")
-chunks_eba = load_chunks("eba_paragraphs.json")
+def load_chunk_files(filenames):
+    """Concatenates chunks from multiple documents into one store's chunk
+    list — used for authorities with more than one source document (e.g.
+    cssf: Circular 20/750 + 22/806 + 24/847). Each document keeps its own
+    chunk_id namespace (enforced by each parser's own chunk_id_prefix), so
+    concatenation is safe without an extra dedup/merge step."""
+    chunks = []
+    for filename in filenames:
+        chunks.extend(load_chunks(filename))
+    return chunks
+
+chunks_cssf = load_chunk_files([
+    "cssf_sections.json",
+    "cssf_22_806_sections.json",
+    "cssf_24_847_paragraphs.json",
+])
+chunks_dora = load_chunk_files([
+    "dora_articles.json",
+    "dora_rts_2024_1774_articles.json",
+])
+chunks_eba = load_chunk_files([
+    "eba_paragraphs.json",
+    "eba_gl_2019_04_paragraphs.json",
+])
+chunks_gdpr = load_chunks("gdpr_articles.json")
 
 vector_store = {
     "cssf": {"vectors": None, "ids": [], "metadata": []},
     "dora": {"vectors": None, "ids": [], "metadata": []},
     "eba": {"vectors": None, "ids": [], "metadata": []},
+    "gdpr": {"vectors": None, "ids": [], "metadata": []},
 }
 
 # -------------------------------
@@ -97,6 +120,7 @@ faiss_indexes = {
     "cssf": build_or_load_index("cssf", chunks_cssf),
     "dora": build_or_load_index("dora", chunks_dora),
     "eba": build_or_load_index("eba", chunks_eba),
+    "gdpr": build_or_load_index("gdpr", chunks_gdpr),
 }
 
 # -------------------------------
@@ -200,8 +224,13 @@ if __name__ == "__main__":
     
         required_files = [
             os.path.join(CHUNK_PATH, "cssf_sections.json"),
+            os.path.join(CHUNK_PATH, "cssf_22_806_sections.json"),
+            os.path.join(CHUNK_PATH, "cssf_24_847_paragraphs.json"),
             os.path.join(CHUNK_PATH, "dora_articles.json"),
+            os.path.join(CHUNK_PATH, "dora_rts_2024_1774_articles.json"),
             os.path.join(CHUNK_PATH, "eba_paragraphs.json"),
+            os.path.join(CHUNK_PATH, "eba_gl_2019_04_paragraphs.json"),
+            os.path.join(CHUNK_PATH, "gdpr_articles.json"),
         ]
         missing = [f for f in required_files if not os.path.exists(f)]
         if missing:

@@ -7,6 +7,7 @@ EBA_NOISE_PATTERNS = [
     r"^Page\s+\d+.*$",
     r"^\d+$",                    # standalone page numbers
     r"European Banking Authority",
+    r"^CONSOLIDATED VERSION OF GUIDELINES",  # repeating page-break header in consolidated GL text
 ]
 
 

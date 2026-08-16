@@ -1,6 +1,7 @@
 import type { ResultViewModel } from "../api/viewModel";
 import { ConfidenceBadge } from "./ConfidenceBadge";
 import { CitationList } from "./CitationList";
+import { FormattedText } from "./FormattedText";
 
 export function ResultView({ vm }: { vm: ResultViewModel }) {
   if (vm.status === "idle") return null;
@@ -21,7 +22,7 @@ export function ResultView({ vm }: { vm: ResultViewModel }) {
       {vm.answer && (
         <section className="result-section">
           <h2>Answer</h2>
-          <p className="answer-text">{vm.answer.text || "No answer returned."}</p>
+          <FormattedText text={vm.answer.text || "No answer returned."} />
           <ConfidenceBadge score={vm.confidence ?? vm.answer.confidence} />
         </section>
       )}
@@ -38,7 +39,7 @@ export function ResultView({ vm }: { vm: ResultViewModel }) {
           <section className="result-section">
             <h2>Executive Summary</h2>
             {vm.summary ? (
-              <p className="summary-text">{vm.summary.text || "No summary available."}</p>
+              <FormattedText text={vm.summary.text || "No summary available."} />
             ) : (
               <p className="muted">Summarizing…</p>
             )}

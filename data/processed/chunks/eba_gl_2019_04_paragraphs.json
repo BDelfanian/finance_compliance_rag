@@ -1,0 +1,178 @@
+[
+  {
+    "chunk_id": "eba_ict_security_paragraph_1",
+    "document_id": "eba_gl_2019_04",
+    "document_title": "EBA/GL/2019/04 (consolidated, as amended by EBA/GL/2025/02) — Guidelines on ICT and Security Risk Management",
+    "authority": "European Banking Authority",
+    "jurisdiction": "EU",
+    "binding_level": "Guideline (Comply or Explain)",
+    "paragraph_number": "1",
+    "section_title": "Compliance and reporting obligations\nStatus of these guidelines",
+    "text": "1. This document contains guidelines issued pursuant to Article 16 of Regulation\n(EU) No 1093/20101. In accordance with Article 16(3) of Regulation (EU) No 1093/2010,\ncompetent authorities and financial institutions must make every effort to comply with the\nguidelines."
+  },
+  {
+    "chunk_id": "eba_ict_security_paragraph_2",
+    "document_id": "eba_gl_2019_04",
+    "document_title": "EBA/GL/2019/04 (consolidated, as amended by EBA/GL/2025/02) — Guidelines on ICT and Security Risk Management",
+    "authority": "European Banking Authority",
+    "jurisdiction": "EU",
+    "binding_level": "Guideline (Comply or Explain)",
+    "paragraph_number": "2",
+    "section_title": "Compliance and reporting obligations\nStatus of these guidelines",
+    "text": "2. Guidelines set out the EBA’s view of appropriate supervisory practices within the European\nSystem of Financial Supervision or of how European Union law should be applied in a particular\narea. Competent authorities as defined in Article 4(2) of Regulation (EU) No 1093/2010 and to\nwhom guidelines apply should comply by incorporating them into their practices as appropriate\n(e.g. by amending their legal framework or their supervisory processes), including where\nguidelines are directed primarily at institutions.\nReporting requirements\nA1"
+  },
+  {
+    "chunk_id": "eba_ict_security_paragraph_3",
+    "document_id": "eba_gl_2019_04",
+    "document_title": "EBA/GL/2019/04 (consolidated, as amended by EBA/GL/2025/02) — Guidelines on ICT and Security Risk Management",
+    "authority": "European Banking Authority",
+    "jurisdiction": "EU",
+    "binding_level": "Guideline (Comply or Explain)",
+    "paragraph_number": "3",
+    "section_title": "Reporting requirements",
+    "text": "3. According to Article 16(3) of Regulation (EU) No 1093/2010, competent authorities must notify\nthe EBA as to whether they comply or intend to comply with these guidelines, or otherwise\nwith reasons for non-compliance, by 20.05.2025. In the absence of any notification by this\ndeadline, competent authorities will be considered by the EBA to be non-compliant.\nNotifications should be sent by submitting the form available on the EBA website with the\nauthority to report compliance on behalf of their competent authorities. Any change in the\nstatus of compliance must also be reported to EBA."
+  },
+  {
+    "chunk_id": "eba_ict_security_paragraph_4",
+    "document_id": "eba_gl_2019_04",
+    "document_title": "EBA/GL/2019/04 (consolidated, as amended by EBA/GL/2025/02) — Guidelines on ICT and Security Risk Management",
+    "authority": "European Banking Authority",
+    "jurisdiction": "EU",
+    "binding_level": "Guideline (Comply or Explain)",
+    "paragraph_number": "4",
+    "section_title": "Notifications should be sent by submitting the form available on the EBA website with the",
+    "text": "4. Notifications will be published on the EBA website, in line with Article 16(3).\n1 Regulation (EU) No 1093/2010 of the European Parliament and of the Council of 24 November 2010 establishing a\nCommission Decision 2009/78/EC, (OJ L 331, 15.12.2010, p.12).\nSubject matter, scope and definitions\nSubject matter\nA1"
+  },
+  {
+    "chunk_id": "eba_ict_security_paragraph_5",
+    "document_id": "eba_gl_2019_04",
+    "document_title": "EBA/GL/2019/04 (consolidated, as amended by EBA/GL/2025/02) — Guidelines on ICT and Security Risk Management",
+    "authority": "European Banking Authority",
+    "jurisdiction": "EU",
+    "binding_level": "Guideline (Comply or Explain)",
+    "paragraph_number": "5",
+    "section_title": "Subject matter",
+    "text": "5. These guidelines are based on the mandate to issue guidelines under Article 95(3) of Directive\n(EU) 2015/2366 and cover aspects of payment user relationship management."
+  },
+  {
+    "chunk_id": "eba_ict_security_paragraph_6",
+    "document_id": "eba_gl_2019_04",
+    "document_title": "EBA/GL/2019/04 (consolidated, as amended by EBA/GL/2025/02) — Guidelines on ICT and Security Risk Management",
+    "authority": "European Banking Authority",
+    "jurisdiction": "EU",
+    "binding_level": "Guideline (Comply or Explain)",
+    "paragraph_number": "6",
+    "section_title": "Subject matter",
+    "text": "6. These guidelines complement the risk management measures under Digital Operational\nResilience Act (DORA) and the related Regulatory Technical Standards that payment service\nproviders referred to in paragraph 5 above must take, in accordance with Article 95(1) of PSD2,\nto manage the operational and security risks relating to the payment services they provide.\nScope of application\nA1"
+  },
+  {
+    "chunk_id": "eba_ict_security_paragraph_7",
+    "document_id": "eba_gl_2019_04",
+    "document_title": "EBA/GL/2019/04 (consolidated, as amended by EBA/GL/2025/02) — Guidelines on ICT and Security Risk Management",
+    "authority": "European Banking Authority",
+    "jurisdiction": "EU",
+    "binding_level": "Guideline (Comply or Explain)",
+    "paragraph_number": "7",
+    "section_title": "Scope of application",
+    "text": "7. These Guidelines specify requirements for the establishment, implementation and monitoring\nof the security measures that payment service providers must take, in accordance with Article\n95(1) of Directive (EU) 2015/2366, to manage the operational and security risks relating to the\npayment services they provide.\nAddressees\nA1"
+  },
+  {
+    "chunk_id": "eba_ict_security_paragraph_8",
+    "document_id": "eba_gl_2019_04",
+    "document_title": "EBA/GL/2019/04 (consolidated, as amended by EBA/GL/2025/02) — Guidelines on ICT and Security Risk Management",
+    "authority": "European Banking Authority",
+    "jurisdiction": "EU",
+    "binding_level": "Guideline (Comply or Explain)",
+    "paragraph_number": "8",
+    "section_title": "Addressees",
+    "text": "8. These guidelines are addressed to competent authorities as defined in Article 4 point (2) point\n(vii) of Regulation (EU) No 1093/2010 and to financial institutions as defined in Article 4(1) of\nRegulation No 1093/2010, which are payment service providers as defined in Article 1(1) point\n(a), point (b) and point (d) of Directive (EU) 2015/2366, including natural or legal persons\nbenefiting from an exemption pursuant to Article 32 or 33 of Directive (EU) 2015/2366 and\nlegal persons exempted under Article 9 of Directive 2009/110/EC.\nDefinitions\n[Deleted]\nImplementation\nDate of application\nA1"
+  },
+  {
+    "chunk_id": "eba_ict_security_paragraph_9",
+    "document_id": "eba_gl_2019_04",
+    "document_title": "EBA/GL/2019/04 (consolidated, as amended by EBA/GL/2025/02) — Guidelines on ICT and Security Risk Management",
+    "authority": "European Banking Authority",
+    "jurisdiction": "EU",
+    "binding_level": "Guideline (Comply or Explain)",
+    "paragraph_number": "9",
+    "section_title": "Implementation\nDate of application",
+    "text": "9. These guidelines apply from the latest by 20.05.2025.\nRepeal\nA1\n[deleted]\nGuidelines on ICT and security risk\nmanagement\n3.1. Proportionality\nA1\n[deleted]\n3.2. Governance and strategy\nA1\n[deleted]\n3.3. ICT and security risk management framework\nA1\n[deleted]\n3.4. Information security\nA1\n[deleted]\n3.5. ICT operations management\nA1\n[deleted]\n3.6. ICT project and change management\nA1\n[deleted]\n3.7. Business continuity management\nA1\n[deleted]\n3.8. Payment service user relationship management"
+  },
+  {
+    "chunk_id": "eba_ict_security_paragraph_92",
+    "document_id": "eba_gl_2019_04",
+    "document_title": "EBA/GL/2019/04 (consolidated, as amended by EBA/GL/2025/02) — Guidelines on ICT and Security Risk Management",
+    "authority": "European Banking Authority",
+    "jurisdiction": "EU",
+    "binding_level": "Guideline (Comply or Explain)",
+    "paragraph_number": "92",
+    "section_title": "Guidelines on ICT and security risk\nmanagement",
+    "text": "92. Payment service providers should establish and implement processes to enhance payment\nservice users’ awareness of the security risks linked to the payment services by providing\npayment service users with assistance and guidance."
+  },
+  {
+    "chunk_id": "eba_ict_security_paragraph_93",
+    "document_id": "eba_gl_2019_04",
+    "document_title": "EBA/GL/2019/04 (consolidated, as amended by EBA/GL/2025/02) — Guidelines on ICT and Security Risk Management",
+    "authority": "European Banking Authority",
+    "jurisdiction": "EU",
+    "binding_level": "Guideline (Comply or Explain)",
+    "paragraph_number": "93",
+    "section_title": "Guidelines on ICT and security risk\nmanagement",
+    "text": "93. The assistance and guidance offered to payment service users should be updated in the light of\nnew threats and vulnerabilities, and changes should be communicated to the payment service\nuser."
+  },
+  {
+    "chunk_id": "eba_ict_security_paragraph_94",
+    "document_id": "eba_gl_2019_04",
+    "document_title": "EBA/GL/2019/04 (consolidated, as amended by EBA/GL/2025/02) — Guidelines on ICT and Security Risk Management",
+    "authority": "European Banking Authority",
+    "jurisdiction": "EU",
+    "binding_level": "Guideline (Comply or Explain)",
+    "paragraph_number": "94",
+    "section_title": "Guidelines on ICT and security risk\nmanagement",
+    "text": "94. Where product functionality permits, payment service providers should allow payment service\nusers to disable specific payment functionalities related to the payment services offered by the\npayment service provider to the payment service user."
+  },
+  {
+    "chunk_id": "eba_ict_security_paragraph_95",
+    "document_id": "eba_gl_2019_04",
+    "document_title": "EBA/GL/2019/04 (consolidated, as amended by EBA/GL/2025/02) — Guidelines on ICT and Security Risk Management",
+    "authority": "European Banking Authority",
+    "jurisdiction": "EU",
+    "binding_level": "Guideline (Comply or Explain)",
+    "paragraph_number": "95",
+    "section_title": "Guidelines on ICT and security risk\nmanagement",
+    "text": "95. Where, in accordance with Article 68(1) of Directive (EU) 2015/2366, a payment service\nprovider has agreed with the payer spending limits for payment transactions executed through\nspecific payment instruments, the payment service provider should provide the payer with the\noption to adjust these limits up to the maximum agreed limit."
+  },
+  {
+    "chunk_id": "eba_ict_security_paragraph_96",
+    "document_id": "eba_gl_2019_04",
+    "document_title": "EBA/GL/2019/04 (consolidated, as amended by EBA/GL/2025/02) — Guidelines on ICT and Security Risk Management",
+    "authority": "European Banking Authority",
+    "jurisdiction": "EU",
+    "binding_level": "Guideline (Comply or Explain)",
+    "paragraph_number": "96",
+    "section_title": "Guidelines on ICT and security risk\nmanagement",
+    "text": "96. Payment service providers should provide payment service users with the option to receive\nalerts on initiated and/or failed attempts to initiate payment transactions, enabling them to\ndetect fraudulent or malicious use of their accounts."
+  },
+  {
+    "chunk_id": "eba_ict_security_paragraph_97",
+    "document_id": "eba_gl_2019_04",
+    "document_title": "EBA/GL/2019/04 (consolidated, as amended by EBA/GL/2025/02) — Guidelines on ICT and Security Risk Management",
+    "authority": "European Banking Authority",
+    "jurisdiction": "EU",
+    "binding_level": "Guideline (Comply or Explain)",
+    "paragraph_number": "97",
+    "section_title": "Guidelines on ICT and security risk\nmanagement",
+    "text": "97. Payment service providers should keep payment service users informed about updates in\nsecurity procedures that affect payment service users regarding the provision of payment\nservices."
+  },
+  {
+    "chunk_id": "eba_ict_security_paragraph_98",
+    "document_id": "eba_gl_2019_04",
+    "document_title": "EBA/GL/2019/04 (consolidated, as amended by EBA/GL/2025/02) — Guidelines on ICT and Security Risk Management",
+    "authority": "European Banking Authority",
+    "jurisdiction": "EU",
+    "binding_level": "Guideline (Comply or Explain)",
+    "paragraph_number": "98",
+    "section_title": "Guidelines on ICT and security risk\nmanagement",
+    "text": "98. Payment service providers should provide payment service users with assistance on all\nquestions, requests for support and notifications of anomalies or issues regarding security\nmatters related to payment services. Payment service users should be appropriately informed\nabout how such assistance can be obtained."
+  }
+]

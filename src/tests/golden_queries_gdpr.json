@@ -1,0 +1,152 @@
+[
+  {
+    "id": "GQ_GDPR_01",
+    "query": "lawful bases for processing personal data",
+    "vector_store_key": "gdpr",
+    "authority": "European Union",
+    "jurisdiction": "EU",
+    "expected_chunk_ids": [
+      "gdpr_article_6"
+    ],
+    "type": "standard"
+  },
+  {
+    "id": "GQ_GDPR_02",
+    "query": "conditions for a valid consent to data processing",
+    "vector_store_key": "gdpr",
+    "authority": "European Union",
+    "jurisdiction": "EU",
+    "expected_chunk_ids": [
+      "gdpr_article_7"
+    ],
+    "type": "standard"
+  },
+  {
+    "id": "GQ_GDPR_03",
+    "query": "right of access by the data subject to their personal data",
+    "vector_store_key": "gdpr",
+    "authority": "European Union",
+    "jurisdiction": "EU",
+    "expected_chunk_ids": [
+      "gdpr_article_15"
+    ],
+    "type": "standard"
+  },
+  {
+    "id": "GQ_GDPR_04",
+    "query": "right to erasure and the right to be forgotten",
+    "vector_store_key": "gdpr",
+    "authority": "European Union",
+    "jurisdiction": "EU",
+    "expected_chunk_ids": [
+      "gdpr_article_17"
+    ],
+    "type": "standard"
+  },
+  {
+    "id": "GQ_GDPR_05",
+    "query": "right to data portability",
+    "vector_store_key": "gdpr",
+    "authority": "European Union",
+    "jurisdiction": "EU",
+    "expected_chunk_ids": [
+      "gdpr_article_20"
+    ],
+    "type": "standard"
+  },
+  {
+    "id": "GQ_GDPR_06",
+    "query": "obligation to designate a data protection officer",
+    "vector_store_key": "gdpr",
+    "authority": "European Union",
+    "jurisdiction": "EU",
+    "expected_chunk_ids": [
+      "gdpr_article_37"
+    ],
+    "type": "standard"
+  },
+  {
+    "id": "GQ_GDPR_07",
+    "query": "notification of a personal data breach to the supervisory authority",
+    "vector_store_key": "gdpr",
+    "authority": "European Union",
+    "jurisdiction": "EU",
+    "expected_chunk_ids": [
+      "gdpr_article_33"
+    ],
+    "type": "standard"
+  },
+  {
+    "id": "GQ_GDPR_08",
+    "query": "when a data protection impact assessment is required",
+    "vector_store_key": "gdpr",
+    "authority": "European Union",
+    "jurisdiction": "EU",
+    "expected_chunk_ids": [
+      "gdpr_article_35"
+    ],
+    "type": "standard"
+  },
+  {
+    "id": "GQ_GDPR_09",
+    "query": "general principles for transfers of personal data to third countries",
+    "vector_store_key": "gdpr",
+    "authority": "European Union",
+    "jurisdiction": "EU",
+    "expected_chunk_ids": [
+      "gdpr_article_44"
+    ],
+    "type": "standard"
+  },
+  {
+    "id": "GQ_GDPR_10",
+    "query": "general conditions for imposing administrative fines",
+    "vector_store_key": "gdpr",
+    "authority": "European Union",
+    "jurisdiction": "EU",
+    "expected_chunk_ids": [
+      "gdpr_article_83"
+    ],
+    "type": "standard"
+  },
+  {
+    "id": "GQ_GDPR_11",
+    "query": "processing of special categories of sensitive personal data",
+    "vector_store_key": "gdpr",
+    "authority": "European Union",
+    "jurisdiction": "EU",
+    "expected_chunk_ids": [
+      "gdpr_article_9"
+    ],
+    "type": "standard"
+  },
+  {
+    "id": "GQ_GDPR_12",
+    "query": "principles relating to processing of personal data such as data minimisation",
+    "vector_store_key": "gdpr",
+    "authority": "European Union",
+    "jurisdiction": "EU",
+    "expected_chunk_ids": [
+      "gdpr_article_5"
+    ],
+    "type": "standard"
+  },
+  {
+    "id": "GQ_GDPR_ADV_01",
+    "query": "what is the best recipe for a sourdough bread starter",
+    "vector_store_key": "gdpr",
+    "authority": "European Union",
+    "jurisdiction": "EU",
+    "expected_chunk_ids": [],
+    "type": "no_answer"
+  },
+  {
+    "id": "GQ_GDPR_ADV_02",
+    "query": "what are the offside rules in professional football",
+    "vector_store_key": "gdpr",
+    "authority": "European Union",
+    "jurisdiction": "EU",
+    "expected_chunk_ids": [],
+    "type": "no_answer"
+  }
+]

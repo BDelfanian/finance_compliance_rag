@@ -2,7 +2,12 @@
 
 **Status:** Phases 0, 1, 2, 3, and 4 are complete (executed, tested, and
 verified live — see `docs/09_current_state_and_known_issues.md` for exactly
-what changed). Phases 5–6 remain proposals.
+what changed). Phase 5 is mostly complete: GDPR chunking/indexing done, the
+shared-base-parser question decided deliberately, and — at the user's
+request, a second axis of "source enrichment" the roadmap hadn't originally
+scoped — four more documents added to the *existing* CSSF/DORA/EBA
+authorities (not new authorities). New-regulator addition (NIS2) remains
+deliberately deferred. Phase 6 remains a proposal.
 
 ## 1. Purpose
 
@@ -202,11 +207,53 @@ instead of the chain layer directly (the "migration path" bullet).
 
 Two separate things here: finishing what's started, and adding breadth.
 
-**Finish what's started:**
-- GDPR is already extracted (`data/processed/extracted_text/gdpr_regulation.txt`)
-  but never chunked or indexed. Lowest-effort addition — the article-based
-  chunking strategy already built for DORA is directly reusable (GDPR is
-  also EU-Regulation-structured, article-based).
+**Finish what's started:** ✅ done, 2026-08-16 — GDPR is chunked (99
+articles, `data/processed/chunks/gdpr_articles.json`), embedded, and indexed
+as its own standalone FAISS store, exactly as predicted here: DORA's
+article-based chunking strategy applied directly (99/99 articles, all 11
+chapters matched DORA's existing regexes on the first try). See `docs/09`'s
+"Phase 5 (Source enrichment)" section for what was verified live and three
+decisions made deliberately rather than assumed:
+- **Shared base parser**: not built as a class hierarchy yet. DORA's
+  `build_article_chunks`/`run_validation` were parameterized (a metadata
+  dict / prefix argument) rather than copy-pasted into a new file, since the
+  actual duplication between DORA and GDPR was entirely in per-document
+  metadata, not parsing logic — but a fuller `BaseParser` abstraction (the
+  archived `cssf_parser.py`'s intent) was deliberately not attempted with
+  only one example (DORA/GDPR) of the Article-based pattern to generalize
+  from. Revisit once a third Article-based source (NIS2/MiCA) exists.
+- **Live query path**: GDPR is indexed and directly queryable
+  (`retrieve(..., vector_store_key="gdpr")`) but was **not** added to
+  `retrieval_agent.VECTOR_STORES` or `citation_bound_answer_generation.py`'s
+  `regulators` dict — every existing CSSF/DORA/EBA query is unaffected.
+  Wiring it into the default fan-out is left as a separate, later decision
+  (it implies an `--update-baseline` eval refresh and a `web/` chip-list
+  update, both deliberately out of scope here).
+- **Eval coverage**: a separate `golden_queries_gdpr.json` +
+  `test_gdpr_retrieval_validation.py` (12 standard + 2 adversarial, all
+  live-validated), not additional entries in `golden_queries.json` — that
+  file's cases all flow through `run_eval.py`'s generation step, which is
+  hardcoded to CSSF/DORA/EBA and would score a GDPR case as a false
+  regression.
+
+**Deepen existing authorities (not originally scoped here, added at the
+user's request):** ✅ done, 2026-08-16 — four more official documents added
+to the *existing* CSSF/DORA/EBA authorities rather than new ones: Circular
+CSSF 24/847 (ICT incident reporting) and 22/806 (outsourcing arrangements)
+into the `cssf` store; Commission Delegated Regulation (EU) 2024/1774 (DORA
+RTS on ICT risk management tools/methods/processes) into the `dora` store;
+EBA/GL/2019/04 consolidated (ICT and security risk management) into the
+`eba` store. Documents were researched via web search and explicitly
+proposed for review before fetching, per §2's ingestion principle below.
+Unlike GDPR, these merge into the existing per-authority FAISS stores, so
+they're automatically part of the live default query fan-out — no separate
+"join the live path" decision needed, since that's what "more resources for
+an existing authority" means structurally. See `docs/09`'s "Phase 5 (Source
+enrichment) — additional CSSF/DORA/EBA documents" section for two real
+parser bugs caught (a table-of-contents/body regex collision and a
+body-sentence-misread-as-heading bug, both in the new `cssf_22_806_parser.py`,
+caught by validation before indexing) and the eval-baseline refresh this
+required (62 queries now, all metrics improved, zero regressions).
 
 **Candidate new sources**, roughly in order of relevance/overlap with what's
 already covered:
@@ -230,7 +277,12 @@ detection via numbering regex, chunk assembly, validation) into a shared base
 implementation that per-authority modules configure rather than reimplement.
 This is exactly what the now-orphaned `src/chunking/cssf/cssf_parser.py` +
 missing `base_parser.py` were apparently attempting — worth reviving that
-idea deliberately instead of leaving it as dead code.
+idea deliberately instead of leaving it as dead code. **Status (2026-08-16):**
+partially addressed — DORA's article-based parser/validator were
+parameterized (not copy-pasted) so GDPR reuses them directly, but a fuller
+`BaseParser` class hierarchy was deliberately deferred; see `docs/09`'s
+Phase 5 section for the reasoning. Worth reviving the full-hierarchy idea
+once a third Article-based source exists to generalize from.
 
 Also worth a **semi-automated ingestion queue**: a scheduled job that checks
 official sources (CSSF website, EUR-Lex) for new/updated documents and drops
@@ -352,7 +404,7 @@ finance_compliance_rag/
 | **2. Evaluation framework** ✅ | Make quality measurable | Expanded golden queries (53), retrieval + generation metrics, CI gate, MLflow eval experiment | Phase 1 |
 | **3. API layer** ✅ | Decouple UI from pipeline | FastAPI service, typed schemas, streaming endpoint, OpenAPI → TS client generation | Phase 0 |
 | **4. TypeScript UI** ✅ | Real frontend | React+TS app (`web/`): query form, SSE-driven agent-by-agent results, audit/history view via `GET /query/{trace_id}` | Phase 3 |
-| **5. Source enrichment** | Broader coverage | GDPR chunking/indexing, shared base parser, 1–2 new regulators (NIS2/MiCA suggested first) | Phase 0, benefits from Phase 2 |
+| **5. Source enrichment** 🟡 | Broader coverage | GDPR chunking/indexing ✅, shared base parser (deliberately deferred, see below) ✅, 4 more CSSF/DORA/EBA documents ✅, 1–2 new regulators (NIS2/MiCA suggested first) — not yet attempted | Phase 0, benefits from Phase 2 |
 | **6. Hardening** | Ready for heavier use | DVC for data artifacts, containerization, cost tracking, human-review workflow, security checks | Phases 1–5 |
 
 Phases 0 and 3 can start in parallel; everything else is easier once 0 is
@@ -379,16 +431,24 @@ sources come with eval coverage immediately) but doesn't strictly require it.
 
 ## 7. Suggested immediate next step
 
-Phases 0, 1, 2, 3, and 4 are done, tested, and verified live — see
+Phases 0–4 are done, tested, and verified live, and Phase 5's
+"finish what's started" item (GDPR chunking/indexing) is now done too — see
 `docs/09_current_state_and_known_issues.md` for the full list of what
 changed and what's still open (notably: dependency versions still unpinned;
 a real generation-quality issue the Phase 2 eval framework surfaced, where
 the LLM occasionally abstains incorrectly on a well-covered query due to
 sampling variance; the CI eval gate's hard dependency on the configured
 OpenAI account having credits; the audit store having no retention policy;
-and, new from Phase 4, both Streamlit UIs remaining as deliberately-kept
-admin/debug tools rather than being migrated onto `app/api.py`). Next up:
-**Phase 5 (source enrichment)** — GDPR is already extracted but unchunked,
-the lowest-effort addition, and benefits from Phase 2's eval framework
-already existing so new sources come with eval coverage immediately. Phase 6
-(hardening) is the other option if broader coverage isn't the priority yet.
+both Streamlit UIs remaining as deliberately-kept admin/debug tools; and, new
+from Phase 5, GDPR being indexed-and-queryable but deliberately not yet part
+of the live orchestrator/API default fan-out). Next up, in priority order:
+1. **Decide whether GDPR joins the live query path** — the deferred half of
+   Phase 5's own decision. Requires threading a regulator selection (or just
+   adding `"gdpr"` to `VECTOR_STORES`/`regulators`) plus a reviewed
+   `--update-baseline` eval refresh and a `web/` chip-list update.
+2. **NIS2** (or MiCA) as the next new regulator, explicitly queued rather
+   than bundled into this pass per the roadmap's own "1–2 sources per
+   iteration" guidance (§6) — and a good forcing function for revisiting the
+   shared-base-parser question with a third real data point.
+3. **Phase 6 (hardening)** is the other option if broader coverage isn't the
+   priority yet.

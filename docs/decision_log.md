@@ -53,3 +53,53 @@ reproducibility, not model comparison or hyperparameter tracking.
 Final confidence = `min(citation_confidence, risk_confidence)`, further
 discounted 20% if the risk agent raised any warnings. The system is designed
 to under-claim confidence rather than over-claim it.
+
+## GDPR reuses DORA's parser via parameterization, not a shared base-parser class
+GDPR is structurally identical to DORA (Article-based EU regulation, same
+Official Journal noise format). `dora_parser.build_article_chunks` and
+`dora_validate_chunks.run_validation` were parameterized (a document-metadata
+dict / id-prefix argument) rather than copy-pasted into new GDPR-specific
+files, since the only real duplication was in per-document metadata, not
+parsing logic. A fuller `BaseParser` class hierarchy (reviving the intent
+behind the archived `cssf_parser.py`) was deliberately deferred: with only
+one example of the Article-based pattern (DORA/GDPR) to generalize from,
+building a class hierarchy now risks guessing the wrong seams for structures
+not yet seen (NIS2, MiCA). Revisit once a third Article-based source exists.
+
+## GDPR indexed standalone, not added to the default multi-regulator fan-out
+`retrieval_agent.VECTOR_STORES` and `citation_bound_answer_generation.py`'s
+`regulators` dict still only list CSSF/DORA/EBA. GDPR is chunked, embedded,
+and queryable via `retrieve(..., vector_store_key="gdpr")`, but joining the
+live orchestrator/API default fan-out is a separate decision (it implies an
+eval-baseline refresh and a frontend update) deliberately left for later
+rather than bundled into the chunking/indexing work. See `docs/09`'s Phase 5
+section.
+
+## New documents for existing authorities merge into the same store, unlike GDPR
+When "add more sources" means more documents for an *existing* authority
+(e.g. a second CSSF circular) rather than a new authority, the new
+document's chunks are concatenated into that authority's existing FAISS
+store (`load_chunk_files` in `run_embeddings_retrieval.py`), not given a
+separate store key the way GDPR was. This is the structurally correct
+choice, not just the simpler one: GDPR's separate store was deliberately
+excluded from the live default fan-out as its own decision, but "more CSSF
+resources" only means something if CSSF queries actually search the new
+content — so unlike GDPR, these documents are unavoidably live from the
+moment they're indexed, and ship with a mandatory eval-baseline refresh
+(query set size changed, so the baseline must be regenerated regardless of
+whether metrics moved) rather than an optional one.
+
+## New authority documents get their own parser only when the structure actually differs
+Before writing a new parser for a second document under an existing
+authority, its actual extracted text is checked against the existing
+parser's regex — not assumed compatible because it's the "same authority."
+Of four new CSSF/DORA/EBA documents added in one pass, only one (a DORA
+RTS) was a clean drop-in reuse of the existing DORA parser; the other two
+CSSF circulars each used numbering schemes distinct from Circular 20/750
+and from each other, and got small dedicated parsers. Reason: `docs/09`'s
+Phase 5 CSSF work found real bugs (a table-of-contents/body regex collision,
+a body sentence misread as a section heading) that surfaced specifically
+because the document's actual structure wasn't what the "same authority
+should mean same format" assumption predicted — validating against real
+extracted text before writing chunking code catches this; assuming
+sameness from the authority name does not.

@@ -12,14 +12,14 @@ def load_chunks(json_path: Path):
     with open(json_path, "r", encoding="utf-8") as f:
         return json.load(f)
 
-def validate_article_boundary(chunks):
+def validate_article_boundary(chunks, document_id_prefix="dora"):
     for c in chunks:
-        if c.get("document_id", "").startswith("dora"):
+        if c.get("document_id", "").startswith(document_id_prefix):
             if not c["text"].lstrip().startswith(c["article_number"]):
                 print(f"⚠ Article boundary mismatch in {c['chunk_id']}")
 
 
-def validate_article_order(chunks):
+def validate_article_order(chunks, label="DORA"):
     article_numbers = []
 
     for c in chunks:
@@ -31,7 +31,7 @@ def validate_article_order(chunks):
                 pass
 
     if article_numbers != sorted(article_numbers):
-        print("⚠ DORA articles are not in numeric order")
+        print(f"⚠ {label} articles are not in numeric order")
 
 def validate_oj_removal(chunks):
     for c in chunks:
@@ -39,12 +39,12 @@ def validate_oj_removal(chunks):
             if re.search(pattern, c["text"], re.MULTILINE):
                 print(f"⚠ Official Journal noise found in {c['chunk_id']}")
 
-def run_validation(json_path: Path):
+def run_validation(json_path: Path, document_id_prefix="dora", label="DORA"):
     chunks = load_chunks(json_path)
     print(f"Loaded {len(chunks)} chunks for validation.")
 
-    validate_article_boundary(chunks)
-    validate_article_order(chunks)
+    validate_article_boundary(chunks, document_id_prefix)
+    validate_article_order(chunks, label)
     validate_oj_removal(chunks)
 
     print("✅ Validation complete.")
