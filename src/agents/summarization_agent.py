@@ -15,6 +15,13 @@ import re
 from src.orchestrator.agent_schema import AgentResult
 from src.orchestrator.agent_validation import validate_agent_result
 
+# Splits on ". " only when it looks like a real sentence boundary: preceded by
+# a letter or closing bracket/paren, followed by an uppercase letter. This
+# deliberately does NOT split on periods inside decimal citation references
+# (e.g. "3.2.1", "Article 5.2(a)"), which are digit-to-digit and never match
+# the letter-based lookbehind.
+_SENTENCE_BOUNDARY = re.compile(r"(?<=[a-zA-Z\)\]])\.\s+(?=[A-Z])")
+
 
 def _clean_answer_text(answer: str) -> List[str]:
     """
@@ -56,11 +63,12 @@ def _clean_answer_text(answer: str) -> List[str]:
     # -------------------------------
     # 2. Conservative sentence split
     # -------------------------------
-    sentences: List[str] = []
-
-    for line in cleaned_lines:
-        parts = [p.strip() for p in line.split(".") if p.strip()]
-        sentences.extend(parts)
+    # Join first: bullets are joined by real sentence boundaries (". " before
+    # a capital letter), not by naive per-line splitting, so a citation-style
+    # decimal reference like "3.2.1" at the end of one bullet never gets torn
+    # apart from the start of the next.
+    joined = " ".join(cleaned_lines)
+    sentences = [s.strip() for s in _SENTENCE_BOUNDARY.split(joined) if s.strip()]
 
     return sentences
 

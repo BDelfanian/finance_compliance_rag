@@ -7,7 +7,7 @@ import pytest
 ROOT_DIR = Path(__file__).resolve().parents[2]
 sys.path.append(str(ROOT_DIR))
 
-from src.run_embeddings_retrieval import retrieve
+from src.retrieval.run_embeddings_retrieval import retrieve
 
 # --- Load golden queries ---
 TEST_DIR = Path(__file__).resolve().parent

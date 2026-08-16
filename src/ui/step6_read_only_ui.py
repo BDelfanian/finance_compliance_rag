@@ -1,50 +1,200 @@
 # src/ui/step6_read_only_ui.py
-import streamlit as st
+"""
+Finance Compliance RAG — primary UI.
+
+Drives the full multi-agent pipeline (retrieval -> citation-bound answer ->
+summarization -> risk assessment) via the MLflow-logged chains in
+src.chains.step6_agent_wrappers_mlflow, and renders the result as a readable
+answer with citations, summary, and risk warnings — not raw JSON dumps.
+Raw agent output remains available per-run for audit purposes.
+"""
 import asyncio
+import re
+from datetime import datetime
+
+import streamlit as st
 
 from src.chains import step6_agent_wrappers_mlflow as wrappers
 
-st.set_page_config(page_title="Finance Compliance RAG (Read-only)", layout="wide")
-st.title("Finance Compliance RAG – Read-only UI")
+st.set_page_config(page_title="Finance Compliance RAG", page_icon="📋", layout="wide")
 
-query = st.text_input("Enter regulatory query:", "")
+if "history" not in st.session_state:
+    st.session_state.history = []
+if "selected" not in st.session_state:
+    st.session_state.selected = None
 
-if query:
-    st.info("Processing query...")
 
-    async def run_agents(query_text):
-        # 1️⃣ Retrieval
-        retrieval_result = await wrappers.retrieval_chain.ainvoke({"query": query_text})
-        
-        # 2️⃣ Citation-bound answer
-        citation_result = await wrappers.citation_chain.ainvoke({
-            "query": query_text,
-            "retrieval_result": retrieval_result,
-        })
-        
-        # 3️⃣ Summarization
-        summary_result = await wrappers.summarization_chain.ainvoke(citation_result)
-        
-        # 4️⃣ Risk assessment
-        risk_result = await wrappers.risk_assessment_chain.ainvoke({
-            "citation_result": citation_result,
-            "retrieval_result": retrieval_result
-        })
+st.title("📋 Finance Compliance RAG")
+st.caption(
+    "Retrieval-grounded answers over CSSF, DORA, and EBA regulatory text. "
+    "**Advisory only — not legal advice.** Every statement is traceable to a "
+    "cited source below; review before acting on it."
+)
 
-        return retrieval_result, citation_result, summary_result, risk_result
 
-    # Run the async pipeline
-    retrieval_result, citation_result, summary_result, risk_result = asyncio.run(run_agents(query))
+def confidence_badge(score: float) -> str:
+    score = float(score or 0.0)
+    if score >= 0.75:
+        color = "green"
+    elif score >= 0.5:
+        color = "orange"
+    else:
+        color = "red"
+    return f":{color}[**{score:.0%} confidence**]"
 
-    # Display outputs
-    st.subheader("Retrieval Output")
-    st.json(retrieval_result)
 
-    st.subheader("Citation-bound Answer")
-    st.json(citation_result)
+def _is_cited_in_answer(source_reference: str, answer_text: str) -> bool:
+    """
+    Heuristic only: the citation agent's "citations" list is every chunk
+    retrieved and handed to the LLM as context, not just the ones the LLM
+    actually referenced in its answer — those are different sets. This checks
+    whether a chunk's reference literally appears inside a "[...]" citation
+    bracket in the generated text, so the UI can show which sources the
+    answer actually leans on vs. which were provided but went unused.
+    """
+    if not source_reference:
+        return False
+    for bracket in re.findall(r"\[([^\]]+)\]", answer_text or ""):
+        if source_reference in bracket:
+            return True
+    return False
 
-    st.subheader("Summarization")
-    st.json(summary_result)
 
-    st.subheader("Risk Assessment")
-    st.json(risk_result)
+def render_citations(citations: list, answer_text: str = "") -> None:
+    if not citations:
+        st.caption("No citations returned.")
+        return
+    for c in citations:
+        regulation = c.get("source_regulation", "")
+        reference = c.get("source_reference") or c.get("chunk_id", "?")
+        score = c.get("similarity_score")
+        label = f"**{regulation} {reference}**".strip() if regulation else f"**{reference}**"
+        score_txt = f" · similarity {score:.2f}" if isinstance(score, (int, float)) else ""
+        excerpt = c.get("excerpt")
+        if _is_cited_in_answer(reference, answer_text):
+            status = ":green[✓ cited in answer]"
+        else:
+            status = ":gray[retrieved, not directly cited]"
+        st.markdown(f"- {label}{score_txt} — {status}")
+        if excerpt:
+            st.caption(excerpt)
+
+
+def render_entry(entry: dict) -> None:
+    retrieval_result = entry["retrieval_result"]
+    citation_result = entry["citation_result"]
+    summary_result = entry["summary_result"]
+    risk_result = entry["risk_result"]
+    agent_citation = citation_result["agent_result"]
+
+    st.caption(f"Asked {entry['timestamp']}")
+    st.markdown(f"> {entry['query']}")
+
+    st.subheader("Answer")
+    st.markdown(agent_citation.get("answer") or "_No answer returned._")
+    st.markdown(confidence_badge(agent_citation.get("confidence", 0.0)))
+
+    st.subheader("Sources")
+    render_citations(agent_citation.get("citations", []), agent_citation.get("answer", ""))
+
+    col1, col2 = st.columns(2)
+    with col1:
+        st.subheader("Executive Summary")
+        st.info(summary_result.get("answer") or "_No summary available._")
+    with col2:
+        st.subheader("Risk Assessment")
+        warnings = risk_result.get("warnings") or []
+        if warnings:
+            for w in warnings:
+                st.warning(w)
+        else:
+            st.success("No material regulatory risks detected.")
+        st.markdown(confidence_badge(risk_result.get("confidence", 0.0)))
+
+    with st.expander("Raw agent output (debug / audit)"):
+        st.markdown("**Retrieval**")
+        st.json(retrieval_result)
+        st.markdown("**Citation-bound answer**")
+        st.json(citation_result)
+        st.markdown("**Summarization**")
+        st.json(summary_result)
+        st.markdown("**Risk assessment**")
+        st.json(risk_result)
+
+
+with st.form("query_form"):
+    query = st.text_area(
+        "Regulatory query",
+        height=100,
+        placeholder=(
+            "e.g. What are the management body's responsibilities for ICT risk "
+            "governance under CSSF, DORA, and EBA?"
+        ),
+    )
+    st.caption("Searches CSSF, DORA, and EBA together.")
+    submitted = st.form_submit_button("Submit", type="primary")
+
+if submitted and query.strip():
+    with st.status("Processing query…", expanded=True) as status:
+        try:
+            status.write("🔎 Retrieving relevant regulatory chunks…")
+            retrieval_result = asyncio.run(wrappers.retrieval_chain.ainvoke({"query": query}))
+
+            status.write("✍️ Generating citation-bound answer…")
+            citation_result = asyncio.run(wrappers.citation_chain.ainvoke({
+                "query": query,
+                "retrieval_result": retrieval_result,
+            }))
+            agent_citation = citation_result["agent_result"]
+
+            status.write("📝 Summarizing…")
+            summary_result = asyncio.run(wrappers.summarization_chain.ainvoke({
+                "citation_result": agent_citation,
+            }))
+
+            status.write("⚠️ Assessing risk…")
+            risk_result = asyncio.run(wrappers.risk_assessment_chain.ainvoke({
+                "citation_result": agent_citation,
+                "retrieval_result": retrieval_result,
+            }))
+
+            status.update(label="Done", state="complete", expanded=False)
+        except Exception as e:
+            status.update(label="Failed", state="error", expanded=True)
+            st.error(f"Something went wrong processing this query: {e}")
+            st.stop()
+
+    entry = {
+        "query": query,
+        "retrieval_result": retrieval_result,
+        "citation_result": citation_result,
+        "summary_result": summary_result,
+        "risk_result": risk_result,
+        "timestamp": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+    }
+    st.session_state.history.append(entry)
+    st.session_state.selected = len(st.session_state.history) - 1
+
+# Rendered after any submission above is processed, so a just-completed
+# query shows up immediately rather than on the next rerun.
+with st.sidebar:
+    st.header("Query History")
+    if not st.session_state.history:
+        st.caption("No queries yet this session.")
+    else:
+        for i, past in enumerate(reversed(st.session_state.history)):
+            idx = len(st.session_state.history) - 1 - i
+            label = past["query"][:60] + ("…" if len(past["query"]) > 60 else "")
+            if st.button(label, key=f"hist_{idx}", use_container_width=True):
+                st.session_state.selected = idx
+        st.divider()
+        if st.button("Clear history", use_container_width=True):
+            st.session_state.history = []
+            st.session_state.selected = None
+            st.rerun()
+
+if st.session_state.selected is not None and st.session_state.history:
+    st.divider()
+    render_entry(st.session_state.history[st.session_state.selected])
+elif not st.session_state.history:
+    st.info("Enter a query above to get started.")

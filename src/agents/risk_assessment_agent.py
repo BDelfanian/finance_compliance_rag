@@ -58,7 +58,7 @@ async def risk_assessment_agent(
     # -------------------------------
     retrieved_sources = {
         chunk.get("source_reference")
-        for chunk in retrieval_result.get("documents", [])
+        for chunk in retrieval_result.get("retrieved_chunks", [])
         if chunk.get("source_reference")
     }
 

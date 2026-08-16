@@ -1,0 +1,45 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "finance_compliance_rag"
+version = "0.1.0"
+description = "Retrieval-grounded, multi-agent compliance risk assessment prototype over financial regulatory documents (CSSF, DORA, EBA)."
+readme = "README.md"
+requires-python = ">=3.10"
+dependencies = [
+    # PDF extraction
+    "pdfplumber>=0.11",
+    "pdfminer.six",
+    "pypdfium2",
+    "pillow",
+    "cryptography",
+    "cffi",
+    "charset-normalizer",
+    "pycparser",
+    "typing_extensions",
+    # Embeddings, retrieval, generation
+    "openai",
+    "faiss-cpu",
+    "numpy",
+    # Orchestration
+    "langchain-core",
+    "mlflow",
+    # UI
+    "streamlit",
+    "pandas",
+    "reportlab",
+    "pyyaml",
+]
+
+[project.optional-dependencies]
+dev = ["pytest", "pytest-asyncio"]
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["src*"]
+
+[tool.pytest.ini_options]
+testpaths = ["src/tests"]
+asyncio_mode = "auto"

@@ -1,4 +1,4 @@
-from orchestrator.multi_agent_orchestrator import run_orchestrator
+from src.orchestrator.multi_agent_orchestrator import run_orchestrator
 
 result = run_orchestrator(
     query="What governance, risk management, and oversight responsibilities does the management body "

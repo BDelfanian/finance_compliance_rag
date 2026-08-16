@@ -12,7 +12,7 @@ from reportlab.lib.pagesizes import letter
 ROOT_DIR = Path(__file__).resolve().parents[2]
 sys.path.append(str(ROOT_DIR))
 
-from src.run_embeddings_retrieval import retrieve, vector_store
+from src.retrieval.run_embeddings_retrieval import retrieve, vector_store
 
 st.set_page_config(page_title="Advanced Regulatory RAG", layout="wide")
 st.title("📜 Regulatory Retrieval Assistant (Advanced)")

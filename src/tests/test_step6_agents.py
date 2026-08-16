@@ -22,6 +22,7 @@ from src.agents import summarization_agent as sa
 from src.agents import risk_assessment_agent as risk
 from src.orchestrator.multi_agent_orchestrator import MultiAgentOrchestrator
 from src.orchestrator.agent_validation import validate_agent_result
+from src.orchestrator.langchain_wrappers import make_chain
 
 
 # -------------------------------
@@ -38,7 +39,7 @@ def retrieval_result_fixture():
             "confidence": 1.0,
             "warnings": [],
         },
-        "documents": [  # <-- change from retrieved_chunks to documents
+        "retrieved_chunks": [
             {"source_reference": "REG-1", "text": "Sample regulation text"},
             {"source_reference": "REG-2", "text": "Another regulation"},
         ],
@@ -213,31 +214,41 @@ async def test_risk_agent_partial_coverage(citation_result_fixture, retrieval_re
 
 @pytest.fixture
 def orchestrator(monkeypatch):
-    # Mock agents
-    async def mock_retrieval_agent(query: str):
+    # Mock the LangChain-wrapped chains the orchestrator actually calls
+    # (retrieval_chain / citation_chain / summarization_chain / risk_assessment_chain),
+    # not the raw agent functions — MultiAgentOrchestrator.run() invokes chains,
+    # each of which .ainvoke()s a single positional input.
+    async def mock_retrieval_chain_fn(query: str):
         return {
-            "agent_result": {"agent_name": "retrieval", "answer": "mock", "citations": [], "confidence": 1.0, "warnings": None},
+            "agent_result": {"agent_name": "retrieval", "answer": "mock", "citations": [], "confidence": 1.0, "warnings": []},
             "retrieved_chunks": [{"source_reference": "REG-1", "text": "chunk"}]
         }
 
-    async def mock_citation_agent(query: str, retrieval_result: dict):
+    async def mock_citation_chain_fn(payload: dict):
         return {
-            "answer": "Mock citation answer",
-            "citations": [{"source_id": "REG-1", "excerpt": "chunk"}],
-            "confidence": 0.8,
-            "timestamp": "2026-01-03T00:00:00"
+            "agent_result": {
+                "agent_name": "citation",
+                "answer": "Mock citation answer",
+                "citations": [{"source_reference": "REG-1", "excerpt": "chunk"}],
+                "confidence": 0.8,
+                "warnings": [],
+            },
+            "retrieved_chunks": payload["retrieval_result"]["retrieved_chunks"],
+            "timestamp": "2026-01-03T00:00:00",
         }
 
-    async def mock_summarization_agent(citation_result: dict):
+    async def mock_summarization_chain_fn(payload: dict):
+        citation_result = payload["citation_result"]
         return {
             "agent_name": "summarization",
             "answer": "Mock summary",
             "citations": citation_result["citations"],
             "confidence": 0.75,
-            "warnings": None
+            "warnings": []
         }
 
-    async def mock_risk_agent(citation_result: dict, retrieval_result: dict):
+    async def mock_risk_chain_fn(payload: dict):
+        citation_result = payload["citation_result"]
         return {
             "agent_name": "risk_assessment",
             "answer": "Partial regulatory coverage detected.",
@@ -247,10 +258,10 @@ def orchestrator(monkeypatch):
         }
 
     from src.orchestrator import multi_agent_orchestrator as mao
-    monkeypatch.setattr(mao, "retrieval_agent", mock_retrieval_agent)
-    monkeypatch.setattr(mao, "citation_agent", mock_citation_agent)
-    monkeypatch.setattr(mao, "summarization_agent", mock_summarization_agent)
-    monkeypatch.setattr(mao, "risk_assessment_agent", mock_risk_agent)
+    monkeypatch.setattr(mao, "retrieval_chain", make_chain(mock_retrieval_chain_fn))
+    monkeypatch.setattr(mao, "citation_chain", make_chain(mock_citation_chain_fn))
+    monkeypatch.setattr(mao, "summarization_chain", make_chain(mock_summarization_chain_fn))
+    monkeypatch.setattr(mao, "risk_assessment_chain", make_chain(mock_risk_chain_fn))
 
     return MultiAgentOrchestrator(model_version="test-model")
 
@@ -271,7 +282,7 @@ async def test_orchestrator_fail_fast_missing_retrieval(monkeypatch):
         return None
 
     from src.orchestrator import multi_agent_orchestrator as mao
-    monkeypatch.setattr(mao, "retrieval_agent", empty_retrieval)
+    monkeypatch.setattr(mao, "retrieval_chain", make_chain(empty_retrieval))
 
     orchestrator = MultiAgentOrchestrator(model_version="test-model")
 
@@ -281,18 +292,28 @@ async def test_orchestrator_fail_fast_missing_retrieval(monkeypatch):
 
 @pytest.mark.asyncio
 async def test_orchestrator_fail_fast_missing_citations(monkeypatch):
-    async def mock_retrieval_agent(query: str):
+    async def mock_retrieval_chain_fn(query: str):
         return {
             "agent_result": {"agent_name": "retrieval", "answer": "mock", "citations": [], "confidence": 1.0, "warnings": []},
             "retrieved_chunks": [{"source_reference": "REG-1", "text": "chunk"}]
         }
 
-    async def bad_citation_agent(query: str, retrieval_result: dict):
-        return {"answer": "text", "citations": [], "confidence": 0.9, "warnings": []}
+    async def bad_citation_chain_fn(payload: dict):
+        return {
+            "agent_result": {
+                "agent_name": "citation",
+                "answer": "text",
+                "citations": [],
+                "confidence": 0.9,
+                "warnings": [],
+            },
+            "retrieved_chunks": [],
+            "timestamp": "2026-01-03T00:00:00",
+        }
 
     from src.orchestrator import multi_agent_orchestrator as mao
-    monkeypatch.setattr(mao, "retrieval_agent", mock_retrieval_agent)
-    monkeypatch.setattr(mao, "citation_agent", bad_citation_agent)
+    monkeypatch.setattr(mao, "retrieval_chain", make_chain(mock_retrieval_chain_fn))
+    monkeypatch.setattr(mao, "citation_chain", make_chain(bad_citation_chain_fn))
 
     orchestrator_instance = MultiAgentOrchestrator(model_version="test-model")
 

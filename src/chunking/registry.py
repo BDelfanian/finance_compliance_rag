@@ -1,16 +1,16 @@
 from pathlib import Path
 
-from chunking.cssf.cssf_cleaning import clean_text as cssf_clean
-from chunking.cssf.chunk_builder import build_section_chunks
-from chunking.cssf.cssf_validate_chunks import run_validation as cssf_run_validation
+from src.chunking.cssf.cssf_cleaning import clean_text as cssf_clean
+from src.chunking.cssf.chunk_builder import build_section_chunks
+from src.chunking.cssf.cssf_validate_chunks import run_validation as cssf_run_validation
 
-from chunking.dora.dora_cleaning import remove_official_journal_noise as dora_clean
-from chunking.dora.dora_parser import build_article_chunks
-from chunking.dora.dora_validate_chunks import run_validation as dora_run_validation
+from src.chunking.dora.dora_cleaning import remove_official_journal_noise as dora_clean
+from src.chunking.dora.dora_parser import build_article_chunks
+from src.chunking.dora.dora_validate_chunks import run_validation as dora_run_validation
 
-from chunking.eba.eba_cleaning import remove_eba_noise as eba_clean
-from chunking.eba.eba_parser import build_paragraph_chunks
-from chunking.eba.eba_validate_chunks import run_validation as eba_run_validation
+from src.chunking.eba.eba_cleaning import remove_eba_noise as eba_clean
+from src.chunking.eba.eba_parser import build_paragraph_chunks
+from src.chunking.eba.eba_validate_chunks import run_validation as eba_run_validation
 
 
 DOCUMENT_REGISTRY = {

@@ -1,7 +1,7 @@
 import argparse
 
-from chunking.registry import DOCUMENT_REGISTRY
-from chunking.persist_chunks import save_chunks
+from src.chunking.registry import DOCUMENT_REGISTRY
+from src.chunking.persist_chunks import save_chunks
 
 
 def run(document_type: str):
