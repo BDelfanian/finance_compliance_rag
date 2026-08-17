@@ -47,7 +47,7 @@ User Query
     │
     ▼
 MultiAgentOrchestrator (src/orchestrator/multi_agent_orchestrator.py)
-    ├── Retrieval Agent        → FAISS (cssf / dora / eba), hard filters + cosine search
+    ├── Retrieval Agent        → FAISS (cssf / dora / eba / nis2), hard filters + cosine search
     ├── Citation Agent         → GPT-5 mini, citation-bound answer (cached)
     ├── Summarization Agent    → conservative, citation-only compression
     └── Risk Assessment Agent  → coverage/confidence gap detection

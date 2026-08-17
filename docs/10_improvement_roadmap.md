@@ -1,13 +1,16 @@
 # Improvement Roadmap & Restructuring Plan
 
-**Status:** Phases 0, 1, 2, 3, and 4 are complete (executed, tested, and
-verified live — see `docs/09_current_state_and_known_issues.md` for exactly
-what changed). Phase 5 is mostly complete: GDPR chunking/indexing done, the
-shared-base-parser question decided deliberately, and — at the user's
-request, a second axis of "source enrichment" the roadmap hadn't originally
-scoped — four more documents added to the *existing* CSSF/DORA/EBA
-authorities (not new authorities). New-regulator addition (NIS2) remains
-deliberately deferred. Phase 6 remains a proposal.
+**Status:** Phases 0 through 5 are complete (executed, tested, and verified
+live — see `docs/09_current_state_and_known_issues.md` for exactly what
+changed). Phase 5 ended up covering three distinct pieces: GDPR
+chunking/indexing, the shared-base-parser decision, four more documents
+added to the *existing* CSSF/DORA/EBA authorities (a second "source
+enrichment" axis the roadmap hadn't originally scoped, added at the user's
+request), and finally the originally-queued new-regulator addition —
+**NIS2** — which does join the live default query path (unlike GDPR),
+since the roadmap's own reason for recommending NIS2 first (cross-regulation
+risk detection) only works if NIS2 and DORA are searched together. Phase 6
+remains a proposal.
 
 ## 1. Purpose
 
@@ -257,9 +260,14 @@ required (62 queries now, all metrics improved, zero regressions).
 
 **Candidate new sources**, roughly in order of relevance/overlap with what's
 already covered:
-- **NIS2 Directive** — cybersecurity, heavy overlap with DORA; good test of
-  cross-regulation risk detection (the risk agent could flag where DORA and
-  NIS2 obligations overlap or conflict).
+- ~~**NIS2 Directive**~~ ✅ done, 2026-08-17 — added and wired into the live
+  default fan-out (not standalone like GDPR), specifically so the
+  cross-regulation risk-detection test this bullet originally called for is
+  actually possible. See `docs/09`'s "Phase 5 (Source enrichment) — NIS2"
+  section for the chunking approach (DORA's parser reused, one new
+  truncation step for a Correlation Table annex that produced false-positive
+  article matches), the four hardcoded call sites that needed updating to
+  wire in a new *live* regulator, and the eval-baseline refresh.
 - **MiCA** (Markets in Crypto-Assets) — EU regulation, same
   Article-based chunking pattern as DORA, extends coverage to digital assets.
 - **ECB/EIOPA/ESMA guidelines** — broadens beyond banking-only (EIOPA =
@@ -404,7 +412,7 @@ finance_compliance_rag/
 | **2. Evaluation framework** ✅ | Make quality measurable | Expanded golden queries (53), retrieval + generation metrics, CI gate, MLflow eval experiment | Phase 1 |
 | **3. API layer** ✅ | Decouple UI from pipeline | FastAPI service, typed schemas, streaming endpoint, OpenAPI → TS client generation | Phase 0 |
 | **4. TypeScript UI** ✅ | Real frontend | React+TS app (`web/`): query form, SSE-driven agent-by-agent results, audit/history view via `GET /query/{trace_id}` | Phase 3 |
-| **5. Source enrichment** 🟡 | Broader coverage | GDPR chunking/indexing ✅, shared base parser (deliberately deferred, see below) ✅, 4 more CSSF/DORA/EBA documents ✅, 1–2 new regulators (NIS2/MiCA suggested first) — not yet attempted | Phase 0, benefits from Phase 2 |
+| **5. Source enrichment** ✅ | Broader coverage | GDPR chunking/indexing ✅, shared base parser (deliberately deferred, see below) ✅, 4 more CSSF/DORA/EBA documents ✅, NIS2 added and wired into the live path ✅ | Phase 0, benefits from Phase 2 |
 | **6. Hardening** | Ready for heavier use | DVC for data artifacts, containerization, cost tracking, human-review workflow, security checks | Phases 1–5 |
 
 Phases 0 and 3 can start in parallel; everything else is easier once 0 is
@@ -431,24 +439,35 @@ sources come with eval coverage immediately) but doesn't strictly require it.
 
 ## 7. Suggested immediate next step
 
-Phases 0–4 are done, tested, and verified live, and Phase 5's
-"finish what's started" item (GDPR chunking/indexing) is now done too — see
+Phases 0–5 are done, tested, and verified live — see
 `docs/09_current_state_and_known_issues.md` for the full list of what
 changed and what's still open (notably: dependency versions still unpinned;
 a real generation-quality issue the Phase 2 eval framework surfaced, where
 the LLM occasionally abstains incorrectly on a well-covered query due to
 sampling variance; the CI eval gate's hard dependency on the configured
 OpenAI account having credits; the audit store having no retention policy;
-both Streamlit UIs remaining as deliberately-kept admin/debug tools; and, new
-from Phase 5, GDPR being indexed-and-queryable but deliberately not yet part
-of the live orchestrator/API default fan-out). Next up, in priority order:
-1. **Decide whether GDPR joins the live query path** — the deferred half of
-   Phase 5's own decision. Requires threading a regulator selection (or just
-   adding `"gdpr"` to `VECTOR_STORES`/`regulators`) plus a reviewed
-   `--update-baseline` eval refresh and a `web/` chip-list update.
-2. **NIS2** (or MiCA) as the next new regulator, explicitly queued rather
-   than bundled into this pass per the roadmap's own "1–2 sources per
-   iteration" guidance (§6) — and a good forcing function for revisiting the
-   shared-base-parser question with a third real data point.
-3. **Phase 6 (hardening)** is the other option if broader coverage isn't the
-   priority yet.
+both Streamlit UIs remaining as deliberately-kept admin/debug tools; GDPR
+being indexed-and-queryable but deliberately not part of the live
+orchestrator/API default fan-out — a decision that still stands, since
+nothing about adding NIS2 changed the reasoning for GDPR specifically; and,
+new from finishing Phase 5, three independent hardcoded regulator lists
+— `retrieval_agent.VECTOR_STORES`, `citation_bound_answer_generation.py`'s
+`regulators` dict, and `run_eval.py`'s `_REGULATOR_TO_STORE_KEY` — that all
+have to be kept in sync by hand whenever a live regulator is added or
+removed, with nothing enforcing that today). Next up, in priority order:
+1. **Phase 6 (hardening)** — DVC for data artifacts, containerization, cost
+   tracking, human-review workflow, security checks. The natural next step
+   now that source enrichment (Phase 5) is complete.
+2. **MiCA** or another new regulator, if broader coverage is still the
+   priority over hardening — same "1–2 sources per iteration" discipline
+   (§6) that kept NIS2 to its own pass applies here too, and a second
+   Article-based source beyond DORA/GDPR/NIS2 would be a good forcing
+   function for revisiting the shared-base-parser question with a real
+   third data point (now technically a fourth, but the first three all
+   share the identical pattern via the same parameterized function).
+3. **Deduplicate the regulator-list problem** noted above — worth doing
+   before a fifth live source makes the hand-sync burden worse; a single
+   source of truth (e.g. a `LIVE_REGULATORS` registry both `retrieval_agent`
+   and `citation_bound_answer_generation` import from) would remove an
+   entire class of "forgot to update one of three lists" bugs like the one
+   `test_retrieval_agent_returns_documents` had already fallen into.

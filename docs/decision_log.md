@@ -103,3 +103,29 @@ because the document's actual structure wasn't what the "same authority
 should mean same format" assumption predicted — validating against real
 extracted text before writing chunking code catches this; assuming
 sameness from the authority name does not.
+
+## NIS2 joins the live default fan-out, unlike GDPR — because the reason for picking it requires that
+GDPR (a new authority) was deliberately kept out of `retrieval_agent.VECTOR_STORES`/
+`citation_bound_answer_generation.py`'s `regulators` dict when it was added — see
+above. NIS2 (also a new authority) was added *into* both, at the user's
+explicit direction. The distinction isn't arbitrary: the roadmap's own
+stated reason for recommending NIS2 first was "a good test of
+cross-regulation risk detection" in `risk_assessment_agent.py` — a test
+that's structurally impossible unless NIS2 and DORA are actually searched
+together in the same query, i.e. unless NIS2 is live. Shipping it
+standalone (GDPR's pattern) would have technically finished the roadmap
+checkbox while quietly defeating the reason the checkbox existed.
+
+## A new *live* regulator needs updating at four independent call sites — and nothing enforces that
+Adding NIS2 to the live path meant updating
+`retrieval_agent.VECTOR_STORES`, `citation_bound_answer_generation.py`'s
+`regulators` dict, and `run_eval.py`'s `_REGULATOR_TO_STORE_KEY`, on top of
+`run_embeddings_retrieval.py`'s `vector_store`/`faiss_indexes` dicts — four
+separate hardcoded lists that all have to name the same set of regulators,
+with no shared source of truth and no test that catches drift between them
+structurally (only a test that happened to hardcode one list's *length* as
+a literal, which broke the moment that length changed — see
+`test_retrieval_agent_returns_documents` in `docs/09`). Not fixed here
+(fixing it is a refactor, not a NIS2-shaped task), but flagged explicitly in
+`docs/10` §7 as worth a single-source-of-truth registry before a fifth live
+regulator makes the hand-sync burden worse.

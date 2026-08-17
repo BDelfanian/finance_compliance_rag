@@ -22,7 +22,7 @@ st.title("📜 Regulatory Retrieval Assistant (Advanced)")
 # -------------------------
 query_text = st.text_area("Enter your regulatory query:", height=120)
 
-regulator_options = ["CSSF", "DORA", "EBA"]
+regulator_options = ["CSSF", "DORA", "EBA", "NIS2"]
 selected_regulators = st.multiselect(
     "Select regulator(s):", regulator_options, default=regulator_options
 )
@@ -48,7 +48,8 @@ def set_cached_result(cache_key, result):
 regulator_map = {
     "CSSF": ("cssf", "CSSF", "LU"),
     "DORA": ("dora", "European Union", "EU"),
-    "EBA": ("eba", "European Banking Authority", "EU")
+    "EBA": ("eba", "European Banking Authority", "EU"),
+    "NIS2": ("nis2", "European Union", "EU")
 }
 
 # -------------------------

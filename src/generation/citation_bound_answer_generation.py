@@ -68,12 +68,13 @@ def llm_call(prompt: str) -> str:
 # -------------------------------
 def generate_citation_bound_answer(query_text: str, top_k: int = 5):
     """
-    Retrieve relevant chunks from CSSF, DORA, EBA and generate a citation-bound answer
+    Retrieve relevant chunks from CSSF, DORA, EBA, NIS2 and generate a citation-bound answer
     """
     regulators = {
         "CSSF": {"vector_store_key": "cssf", "authority": "CSSF", "jurisdiction": "LU"},
         "DORA": {"vector_store_key": "dora", "authority": "European Union", "jurisdiction": "EU"},
-        "EBA": {"vector_store_key": "eba", "authority": "European Banking Authority", "jurisdiction": "EU"}
+        "EBA": {"vector_store_key": "eba", "authority": "European Banking Authority", "jurisdiction": "EU"},
+        "NIS2": {"vector_store_key": "nis2", "authority": "European Union", "jurisdiction": "EU"}
     }
 
     retrieved_chunks_all = []

@@ -666,5 +666,91 @@
       "eba_ict_security_paragraph_96"
     ],
     "type": "standard"
+  },
+  {
+    "id": "GQ_NIS2_01",
+    "query": "governance responsibilities of management bodies for cybersecurity risk management",
+    "vector_store_key": "nis2",
+    "authority": "European Union",
+    "jurisdiction": "EU",
+    "expected_chunk_ids": [
+      "nis2_article_20"
+    ],
+    "type": "standard"
+  },
+  {
+    "id": "GQ_NIS2_02",
+    "query": "which entities are essential entities based on size and sector under NIS2",
+    "vector_store_key": "nis2",
+    "authority": "European Union",
+    "jurisdiction": "EU",
+    "expected_chunk_ids": [
+      "nis2_article_3"
+    ],
+    "type": "standard"
+  },
+  {
+    "id": "GQ_NIS2_03",
+    "query": "technical capabilities and requirements that CSIRTs must comply with",
+    "vector_store_key": "nis2",
+    "authority": "European Union",
+    "jurisdiction": "EU",
+    "expected_chunk_ids": [
+      "nis2_article_11"
+    ],
+    "type": "standard"
+  },
+  {
+    "id": "GQ_NIS2_04",
+    "query": "voluntary information sharing arrangements on cyber threats between entities",
+    "vector_store_key": "nis2",
+    "authority": "European Union",
+    "jurisdiction": "EU",
+    "expected_chunk_ids": [
+      "nis2_article_29"
+    ],
+    "type": "standard"
+  },
+  {
+    "id": "GQ_NIS2_05",
+    "query": "use of European cybersecurity certification schemes to demonstrate compliance",
+    "vector_store_key": "nis2",
+    "authority": "European Union",
+    "jurisdiction": "EU",
+    "expected_chunk_ids": [
+      "nis2_article_24"
+    ],
+    "type": "standard"
+  },
+  {
+    "id": "GQ_NIS2_06",
+    "query": "jurisdiction rules determining which member state supervises an entity",
+    "vector_store_key": "nis2",
+    "authority": "European Union",
+    "jurisdiction": "EU",
+    "expected_chunk_ids": [
+      "nis2_article_26"
+    ],
+    "type": "standard"
+  },
+  {
+    "id": "GQ_NIS2_07",
+    "query": "general conditions for imposing administrative fines on essential and important entities",
+    "vector_store_key": "nis2",
+    "authority": "European Union",
+    "jurisdiction": "EU",
+    "expected_chunk_ids": [
+      "nis2_article_34"
+    ],
+    "type": "standard"
+  },
+  {
+    "id": "GQ_ADV_08",
+    "query": "what is the best recipe for a sourdough bread starter",
+    "vector_store_key": "nis2",
+    "authority": "European Union",
+    "jurisdiction": "EU",
+    "expected_chunk_ids": [],
+    "type": "no_answer"
   }
 ]

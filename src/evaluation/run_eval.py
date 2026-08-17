@@ -43,7 +43,7 @@ _ABSTENTION_PHRASE = "information not available in retrieved sources"
 # citation_bound_answer_generation.generate_citation_bound_answer — needed
 # here only to map a chunk's source_regulation back to a vector_store_key
 # for text lookup (the generation response doesn't carry chunk text).
-_REGULATOR_TO_STORE_KEY = {"CSSF": "cssf", "DORA": "dora", "EBA": "eba"}
+_REGULATOR_TO_STORE_KEY = {"CSSF": "cssf", "DORA": "dora", "EBA": "eba", "NIS2": "nis2"}
 
 
 def _load_golden_queries(limit: Optional[int] = None) -> List[Dict[str, Any]]:

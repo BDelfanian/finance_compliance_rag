@@ -60,12 +60,14 @@ chunks_eba = load_chunk_files([
     "eba_gl_2019_04_paragraphs.json",
 ])
 chunks_gdpr = load_chunks("gdpr_articles.json")
+chunks_nis2 = load_chunks("nis2_articles.json")
 
 vector_store = {
     "cssf": {"vectors": None, "ids": [], "metadata": []},
     "dora": {"vectors": None, "ids": [], "metadata": []},
     "eba": {"vectors": None, "ids": [], "metadata": []},
     "gdpr": {"vectors": None, "ids": [], "metadata": []},
+    "nis2": {"vectors": None, "ids": [], "metadata": []},
 }
 
 # -------------------------------
@@ -121,6 +123,7 @@ faiss_indexes = {
     "dora": build_or_load_index("dora", chunks_dora),
     "eba": build_or_load_index("eba", chunks_eba),
     "gdpr": build_or_load_index("gdpr", chunks_gdpr),
+    "nis2": build_or_load_index("nis2", chunks_nis2),
 }
 
 # -------------------------------
@@ -231,6 +234,7 @@ if __name__ == "__main__":
             os.path.join(CHUNK_PATH, "eba_paragraphs.json"),
             os.path.join(CHUNK_PATH, "eba_gl_2019_04_paragraphs.json"),
             os.path.join(CHUNK_PATH, "gdpr_articles.json"),
+            os.path.join(CHUNK_PATH, "nis2_articles.json"),
         ]
         missing = [f for f in required_files if not os.path.exists(f)]
         if missing:

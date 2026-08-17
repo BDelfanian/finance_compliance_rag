@@ -63,10 +63,10 @@ types here instead of importing them.
 
 ## Regulator filtering
 
-The query form lists CSSF/DORA/EBA as informational context only, not a
-working filter — `QueryRequest` has no regulator field, and
-`retrieval_agent.py` always searches all three vector stores. Adding a real
-filter would mean threading a parameter through the orchestrator and
+The query form lists CSSF/DORA/EBA/NIS2 as informational context only, not
+a working filter — `QueryRequest` has no regulator field, and
+`retrieval_agent.py` always searches all configured vector stores. Adding a
+real filter would mean threading a parameter through the orchestrator and
 retrieval agent, not just the frontend; out of scope for this phase.
 
 ## What this app deliberately doesn't replace

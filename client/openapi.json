@@ -2,7 +2,7 @@
   "openapi": "3.1.0",
   "info": {
     "title": "Finance Compliance RAG API",
-    "description": "Retrieval-grounded, multi-agent compliance answers over CSSF, DORA, and EBA regulatory text. Advisory only \u2014 not legal advice; every answer stays traceable to a cited source chunk.",
+    "description": "Retrieval-grounded, multi-agent compliance answers over CSSF, DORA, EBA, and NIS2 regulatory text. Advisory only \u2014 not legal advice; every answer stays traceable to a cited source chunk.",
     "version": "0.1.0"
   },
   "paths": {

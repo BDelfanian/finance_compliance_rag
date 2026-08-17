@@ -60,7 +60,7 @@ export default function App() {
       <header className="app-header">
         <h1>Finance Compliance RAG</h1>
         <p className="app-subtitle">
-          Retrieval-grounded answers over CSSF, DORA, and EBA regulatory text.{" "}
+          Retrieval-grounded answers over CSSF, DORA, EBA, and NIS2 regulatory text.{" "}
           <strong>Advisory only — not legal advice.</strong> Every statement stays traceable to a cited
           source below; review before acting on it.
         </p>

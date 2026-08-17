@@ -29,7 +29,7 @@ if "selected" not in st.session_state:
 
 st.title("📋 Finance Compliance RAG")
 st.caption(
-    "Retrieval-grounded answers over CSSF, DORA, and EBA regulatory text. "
+    "Retrieval-grounded answers over CSSF, DORA, EBA, and NIS2 regulatory text. "
     "**Advisory only — not legal advice.** Every statement is traceable to a "
     "cited source below; review before acting on it."
 )
@@ -139,7 +139,7 @@ with st.form("query_form"):
             "governance under CSSF, DORA, and EBA?"
         ),
     )
-    st.caption("Searches CSSF, DORA, and EBA together.")
+    st.caption("Searches CSSF, DORA, EBA, and NIS2 together.")
     submitted = st.form_submit_button("Submit", type="primary")
 
 if submitted and query.strip():

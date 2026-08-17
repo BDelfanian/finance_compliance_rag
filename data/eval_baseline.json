@@ -1,11 +1,11 @@
 {
-  "num_queries": 62,
-  "num_standard": 55,
-  "num_no_answer": 7,
-  "mean_precision_at_5": 0.48363636363636364,
-  "mean_mrr": 0.8642424242424243,
+  "num_queries": 70,
+  "num_standard": 62,
+  "num_no_answer": 8,
+  "mean_precision_at_5": 0.5204301075268817,
+  "mean_mrr": 0.8795698924731182,
   "abstention_retrieval_accuracy": 1.0,
-  "mean_faithfulness": 0.9918181818181818,
-  "mean_citation_accuracy": 0.9896363636363636,
+  "mean_faithfulness": 0.9879032258064516,
+  "mean_citation_accuracy": 0.9866129032258065,
   "abstention_generation_accuracy": 1.0
 }

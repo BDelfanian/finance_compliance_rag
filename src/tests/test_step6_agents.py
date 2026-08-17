@@ -83,7 +83,7 @@ async def test_retrieval_agent_returns_documents(monkeypatch):
 
     assert "agent_result" in result
     assert "retrieved_chunks" in result
-    assert len(result["retrieved_chunks"]) == 3
+    assert len(result["retrieved_chunks"]) == len(ra.VECTOR_STORES)
     assert result["agent_result"]["agent_name"] == "retrieval"
 
 

@@ -5,7 +5,7 @@ from src.orchestrator.agent_schema import AgentResult
 from src.orchestrator.agent_validation import validate_agent_result
 
 
-VECTOR_STORES = ["cssf", "dora", "eba"]
+VECTOR_STORES = ["cssf", "dora", "eba", "nis2"]
 
 
 async def retrieval_agent(query: str) -> Dict[str, Any]:

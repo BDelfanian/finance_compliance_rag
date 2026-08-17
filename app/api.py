@@ -46,7 +46,7 @@ app = FastAPI(
     title="Finance Compliance RAG API",
     description=(
         "Retrieval-grounded, multi-agent compliance answers over CSSF, DORA, "
-        "and EBA regulatory text. Advisory only — not legal advice; every "
+        "EBA, and NIS2 regulatory text. Advisory only — not legal advice; every "
         "answer stays traceable to a cited source chunk."
     ),
     version="0.1.0",

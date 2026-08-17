@@ -44,6 +44,12 @@ from src.chunking.eba.eba_cleaning import remove_eba_noise as eba_gl_2019_04_cle
 from src.chunking.eba.eba_gl_2019_04_parser import build_paragraph_chunks as eba_gl_2019_04_build_chunks
 from src.chunking.eba.eba_validate_chunks import run_validation as eba_gl_2019_04_run_validation
 
+# --- New regulator: NIS2 (Phase 5, deferred item now picked up) ---
+
+from src.chunking.nis2.nis2_cleaning import clean_text as nis2_clean
+from src.chunking.nis2.nis2_parser import build_article_chunks as nis2_build_chunks
+from src.chunking.nis2.nis2_validate_chunks import run_validation as nis2_run_validation
+
 
 DOCUMENT_REGISTRY = {
     "cssf": {
@@ -101,5 +107,12 @@ DOCUMENT_REGISTRY = {
         "cleaner": eba_gl_2019_04_clean,
         "chunk_builder": eba_gl_2019_04_build_chunks,
         "validator": eba_gl_2019_04_run_validation,
+    },
+    "nis2": {
+        "input_path": Path("data/processed/extracted_text/nis2_directive.txt"),
+        "output_path": Path("data/processed/chunks/nis2_articles.json"),
+        "cleaner": nis2_clean,
+        "chunk_builder": nis2_build_chunks,
+        "validator": nis2_run_validation,
     },
 }

@@ -59,7 +59,7 @@ src/
                           MultiAgentOrchestrator directly since Phase 3
   generation/            STEP 5 citation-bound answer generation (GPT-5 mini)
   retrieval/             STEP 4 embeddings + FAISS retrieval
-  chunking/               Active chunking pipeline (cssf/dora/eba/gdpr), registry-driven
+  chunking/               Active chunking pipeline (cssf/dora/eba/gdpr/nis2), registry-driven
   observability/           Structured logging + trace-ID context (logging_config.py) — Phase 1;
                             file-based audit_store.py (data/audit_log/) — Phase 3
   evaluation/               Golden-query eval runner, metrics, LLM-judge (run_eval.py) — Phase 2
@@ -586,6 +586,17 @@ citations instead of one flat, plain paragraph. See "Post-Phase-4 UI
 polish" below for two real parsing-structure shapes discovered from actual
 cached LLM output (not assumed) and a bug that surfaced along the way. No
 Python changes; test count unchanged at 270/270.
+
+**Update (Phase 5 complete, 2026-08-17):** NIS2 — the one item left queued
+from Phase 5 — is done: chunked (DORA's parser reused, one new truncation
+step for a false-positive-inducing Correlation Table annex), indexed, and
+wired into the *live* default query path (unlike GDPR, deliberately, since
+the roadmap's own reason for picking NIS2 requires it be searched alongside
+DORA in the same query). See "Phase 5 (Source enrichment) — NIS2" below for
+the four hardcoded call sites that needed updating together, a stale test
+assertion this caught, and the eval-baseline refresh (all metrics flat or
+improved). 295/295 tests pass. Phase 5 is now fully complete; Phase 6
+(hardening) is next up per `docs/10`.
 
 ### Resolved the orchestrator/UI chain divergence by standardizing on one path
 
@@ -1210,6 +1221,88 @@ enumeration, plain prose), via a one-off `npx tsx` script exercising the
 parser's internal functions, all parsing correctly. That verification
 script was not committed (it was a debugging aid, not part of the test
 suite).
+
+## Phase 5 (Source enrichment) — NIS2, the deferred item, now picked up
+
+The one Phase 5 item explicitly queued in the previous pass — adding a new
+regulator — is done: **NIS2** (Directive (EU) 2022/2555), the roadmap's own
+first-recommended candidate (heavy DORA overlap, a real test of
+cross-regulation risk detection). Unlike the CSSF/DORA/EBA document
+additions, this is a genuinely new authority/store (like GDPR was) — but
+unlike GDPR, the user explicitly decided this one **should** join the live
+default fan-out, since the roadmap's whole stated reason for picking NIS2
+(cross-regulation risk detection) only works if NIS2 and DORA are searched
+together in the same query.
+
+### Chunking: DORA's parser reused directly, with one new truncation step
+
+NIS2 is structurally identical to DORA/GDPR (numbered `CHAPTER`s containing
+numbered `Article`s, same older-era EU Official Journal noise format) —
+confirmed by testing DORA's existing regexes against the raw text before
+writing any code: 46/46 real articles and all 9 chapters matched. One real
+issue surfaced by that same check, not assumed away: the document's trailing
+**Correlation Table** (an annex mapping the NIS2-repealed 2016 NIS
+Directive's articles to NIS2's own) contains rows starting with `"Article
+N"` at line start, producing false-positive matches against the article
+regex (48 matches instead of 46, with garbled trailing content). Fixed with
+a NIS2-specific cleaning step (`src/chunking/nis2/nis2_cleaning.py`) that
+truncates the text at `"ANNEX I"` — after which nothing is Article-numbered
+regulatory text in the same sense as the 46 real Articles above it — before
+handing off to DORA's reused parser. `binding_level` is recorded as `"EU
+Directive"`, not `"EU Regulation"` like DORA/GDPR — NIS2 requires national
+transposition and isn't directly applicable, a real legal distinction kept
+accurate in the chunk metadata rather than glossed over.
+
+**Verified live**: `python -m src.run_chunking --doc nis2` produced exactly
+46 chunks, one per real Article, correctly chapter-tagged, validator clean
+(no warnings). A FAISS index was built from real OpenAI embedding calls
+(`data/faiss/nis2.*`); hand-written queries against real NIS2 concepts
+(management-body cybersecurity governance, essential/important entity
+classification, CSIRT technical requirements, information sharing,
+certification schemes, jurisdiction, administrative fines) each retrieved
+the correct article as the top result, and two adversarial queries
+correctly retrieved nothing.
+
+### Joining the live path: four call sites updated, not just the retrieval layer
+
+Wiring in a new authority that's meant to be *live* (not standalone like
+GDPR) touched more than the retrieval config:
+`retrieval_agent.VECTOR_STORES`, `citation_bound_answer_generation.py`'s
+`regulators` dict, and `run_eval.py`'s `_REGULATOR_TO_STORE_KEY` mapping
+all needed the same fourth entry — three independent hardcoded lists that
+have to stay in sync by hand (a real structural wrinkle worth flagging, not
+just fixing: nothing enforces these three stay consistent with each other
+or with `run_embeddings_retrieval.py`'s `vector_store` dict). Also updated
+for consistency, since NIS2 is now genuinely part of what's searched: the
+two Streamlit UIs' captions/regulator lists, and `web/`'s regulator chip
+list and `App.tsx` header text (previously accurate as CSSF/DORA/EBA-only;
+now would have been a stale claim if left alone).
+
+One test (`test_retrieval_agent_returns_documents`) had `VECTOR_STORES`'s
+length hardcoded as a literal `3` in its assertion — exactly the kind of
+staleness the lack of single-source-of-truth above predicts. Fixed to
+`len(ra.VECTOR_STORES)` so it can't go stale the same way again next time a
+store is added, rather than just bumping the literal to `4`.
+
+### Eval coverage and baseline
+
+8 new golden queries (`GQ_NIS2_01`–`07` standard, `GQ_ADV_08` adversarial)
+were added directly to `golden_queries.json` — NIS2 is in the live path, so
+unlike GDPR's separate file, these belong in the same eval run as
+everything else. Each was live-validated against the rebuilt index; two
+first-draft phrasings needed iteration (a near-tie between two closely
+related CSIRT articles, and a scope query that initially missed threshold
+entirely) before landing cleanly, the same empirical process Phase 2
+established. 295/295 tests pass (up from 270).
+
+Because NIS2 joins every existing query's default fan-out, the full
+70-query eval (retrieval + generation + LLM judge, real API calls) was
+re-run before touching the baseline: `mean_precision_at_5` 0.484→0.520,
+`mean_mrr` 0.864→0.880 — both meaningfully *improved*, not just flat —
+`mean_faithfulness` 0.992→0.986 and `mean_citation_accuracy` 0.990→0.987
+(both within normal LLM-judge run-to-run variance, not a real regression),
+both abstention-accuracy metrics unchanged at 1.0. `data/eval_baseline.json`
+was refreshed via `--update-baseline` to these 70-query numbers.
 
 ## Known issue: `citation_agent` still re-retrieves independently of the
 ## orchestrator's `retrieval_agent` step
