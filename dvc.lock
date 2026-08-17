@@ -1,0 +1,41 @@
+schema: '2.0'
+stages:
+  chunk:
+    cmd: python -c "import subprocess, sys; from src.chunking.registry import 
+      DOCUMENT_REGISTRY; [subprocess.run([sys.executable, '-m', 
+      'src.run_chunking', '--doc', d], check=True) for d in DOCUMENT_REGISTRY]"
+    deps:
+    - path: data/processed/extracted_text
+      hash: md5
+      md5: 0ccb2bc04bcfb4764b2f13d0ac832035.dir
+      size: 1415943
+      nfiles: 9
+    - path: src/chunking
+      hash: md5
+      md5: de41f7db8c75c822184b91e6f90482a4.dir
+      size: 97603
+      nfiles: 64
+    - path: src/run_chunking.py
+      hash: md5
+      md5: ef5cf1eecc16a764324fc99bd837fd80
+      size: 2207
+    outs:
+    - path: data/processed/chunks
+      hash: md5
+      md5: d083b63bbfa822be351013a563ddaa92.dir
+      size: 1082218
+      nfiles: 9
+  index:
+    cmd: python -c "import src.retrieval.run_embeddings_retrieval"
+    deps:
+    - path: data/processed/chunks
+      hash: md5
+      md5: d083b63bbfa822be351013a563ddaa92.dir
+      size: 1082218
+      nfiles: 9
+    outs:
+    - path: data/faiss
+      hash: md5
+      md5: 1409237ef117b7ad5539804d831bf822.dir
+      size: 6623323
+      nfiles: 15

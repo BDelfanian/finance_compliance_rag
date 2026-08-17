@@ -2,6 +2,7 @@ import type { ResultViewModel } from "../api/viewModel";
 import { ConfidenceBadge } from "./ConfidenceBadge";
 import { CitationList } from "./CitationList";
 import { FormattedText } from "./FormattedText";
+import { ReviewPanel } from "./ReviewPanel";
 
 export function ResultView({ vm }: { vm: ResultViewModel }) {
   if (vm.status === "idle") return null;
@@ -71,8 +72,15 @@ export function ResultView({ vm }: { vm: ResultViewModel }) {
         <footer className="result-footer">
           Trace <code>{vm.auditTrail.trace_id}</code> · model {vm.auditTrail.model_version} ·{" "}
           {new Date(vm.auditTrail.timestamp).toLocaleString()}
+          {typeof vm.auditTrail.estimated_cost_usd === "number" && (
+            <> · est. cost ${vm.auditTrail.estimated_cost_usd.toFixed(4)}</>
+          )}
         </footer>
       )}
+
+      {/* Only once the run has actually completed with a trace_id — not
+          mid-stream, where there's nothing durable yet to attach a review to. */}
+      {vm.auditTrail && <ReviewPanel traceId={vm.auditTrail.trace_id} />}
     </div>
   );
 }

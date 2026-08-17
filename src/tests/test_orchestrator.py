@@ -13,13 +13,14 @@ that MultiAgentOrchestrator actually calls, to:
 """
 
 import pytest
-from src.orchestrator.multi_agent_orchestrator import MultiAgentOrchestrator
-from src.orchestrator.langchain_wrappers import make_chain
 
+from src.orchestrator.langchain_wrappers import make_chain
+from src.orchestrator.multi_agent_orchestrator import MultiAgentOrchestrator
 
 # -------------------------------
 # Mock chain implementations (match the real agent I/O contracts)
 # -------------------------------
+
 
 async def mock_retrieval_chain_fn(query: str):
     return {
@@ -42,9 +43,7 @@ async def mock_citation_chain_fn(payload: dict):
         "agent_result": {
             "agent_name": "citation",
             "answer": "Regulated entities must disclose X.",
-            "citations": [
-                {"source_reference": "REG-1", "excerpt": "must disclose X"}
-            ],
+            "citations": [{"source_reference": "REG-1", "excerpt": "must disclose X"}],
             "confidence": 0.8,
             "warnings": [],
         },
@@ -79,6 +78,7 @@ async def mock_risk_chain_fn(payload: dict):
 # Test helpers
 # -------------------------------
 
+
 @pytest.fixture
 def orchestrator(monkeypatch):
     """
@@ -97,6 +97,7 @@ def orchestrator(monkeypatch):
 # -------------------------------
 # Tests
 # -------------------------------
+
 
 @pytest.mark.asyncio
 async def test_orchestrator_happy_path(orchestrator):
@@ -117,6 +118,7 @@ async def test_fail_fast_on_missing_retrieval(monkeypatch):
         return None
 
     from src.orchestrator import multi_agent_orchestrator as mao
+
     monkeypatch.setattr(mao, "retrieval_chain", make_chain(empty_retrieval))
 
     orchestrator = MultiAgentOrchestrator(model_version="test-model")
@@ -133,6 +135,7 @@ async def test_fail_fast_on_missing_citation_answer(monkeypatch):
     LLM actually cited" (see citation_agent._extract_cited_chunks), so an
     empty list is a legitimate outcome, not a failure signal.
     """
+
     async def bad_citation_chain_fn(payload: dict):
         return {
             "agent_result": {
@@ -147,6 +150,7 @@ async def test_fail_fast_on_missing_citation_answer(monkeypatch):
         }
 
     from src.orchestrator import multi_agent_orchestrator as mao
+
     monkeypatch.setattr(mao, "retrieval_chain", make_chain(mock_retrieval_chain_fn))
     monkeypatch.setattr(mao, "citation_chain", make_chain(bad_citation_chain_fn))
 
@@ -163,6 +167,7 @@ async def test_no_fail_fast_on_empty_citations_with_real_answer(monkeypatch):
     zero cited chunks must flow through, not raise — it's the risk agent's
     job to warn on sparse citations, not the orchestrator's job to reject.
     """
+
     async def uncited_citation_chain_fn(payload: dict):
         return {
             "agent_result": {
@@ -177,6 +182,7 @@ async def test_no_fail_fast_on_empty_citations_with_real_answer(monkeypatch):
         }
 
     from src.orchestrator import multi_agent_orchestrator as mao
+
     monkeypatch.setattr(mao, "retrieval_chain", make_chain(mock_retrieval_chain_fn))
     monkeypatch.setattr(mao, "citation_chain", make_chain(uncited_citation_chain_fn))
     monkeypatch.setattr(mao, "summarization_chain", make_chain(mock_summarization_chain_fn))

@@ -2,6 +2,7 @@
 ordering, OJ-noise-removal checks) unchanged — see gdpr_parser.py for why
 GDPR and DORA share the same structural pattern.
 """
+
 from pathlib import Path
 
 from src.chunking.dora.dora_validate_chunks import run_validation as _run_validation

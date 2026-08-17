@@ -1,9 +1,8 @@
-from typing import Dict, Any, List
+from typing import Any, Dict, List
 
-from src.retrieval.run_embeddings_retrieval import retrieve
 from src.orchestrator.agent_schema import AgentResult
 from src.orchestrator.agent_validation import validate_agent_result
-
+from src.retrieval.run_embeddings_retrieval import retrieve
 
 VECTOR_STORES = ["cssf", "dora", "eba", "nis2"]
 
@@ -30,9 +29,7 @@ async def retrieval_agent(query: str) -> Dict[str, Any]:
         chunks = result.get("retrieved_chunks", [])
         if chunks:
             all_chunks.extend(chunks)
-            source_refs.extend(
-                c.get("source_reference") for c in chunks if c.get("source_reference")
-            )
+            source_refs.extend(c.get("source_reference") for c in chunks if c.get("source_reference"))
 
     if not all_chunks:
         raise ValueError("Retrieval agent returned no relevant chunks")

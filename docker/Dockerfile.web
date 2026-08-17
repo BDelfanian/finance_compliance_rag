@@ -1,0 +1,28 @@
+# Multi-stage: build the static React/TS app, then serve it with nginx.
+# Build context is the repo root (see docker-compose.yml's `web` service),
+# not docker/ — web/src/api/types.ts type-imports client/api-types.ts via a
+# relative path one level above web/ (see client/README.md), so both
+# directories need to be present in the build.
+
+FROM node:20-slim AS build
+WORKDIR /repo
+
+COPY client ./client
+COPY web ./web
+WORKDIR /repo/web
+RUN npm ci
+
+# Vite env vars are compile-time and consumed by the *browser*, not another
+# container — so this must resolve to a host-reachable URL, not the compose
+# internal `api` DNS name. Defaults to api/client.ts's own fallback
+# (http://localhost:8000), which already matches the `api` service's mapped
+# host port in docker-compose.yml; override only for a non-default deploy
+# (e.g. a different host/domain).
+ARG VITE_API_BASE_URL=http://localhost:8000
+ENV VITE_API_BASE_URL=$VITE_API_BASE_URL
+RUN npm run build
+
+FROM nginx:alpine
+COPY --from=build /repo/web/dist /usr/share/nginx/html
+
+EXPOSE 80

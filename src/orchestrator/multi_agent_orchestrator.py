@@ -8,9 +8,9 @@ LangChain is used ONLY as an execution wrapper.
 NO logic is delegated to LangChain.
 """
 
-from typing import Any, AsyncIterator, Dict
-from datetime import datetime, timezone
 import asyncio
+from datetime import datetime, timezone
+from typing import Any, AsyncIterator, Dict
 
 # MLflow-wrapped agent chains (STEP 6.3 / Phase 1's observability wrappers).
 # Previously this imported the plain (unlogged) chains from
@@ -22,14 +22,15 @@ import asyncio
 # orchestrated run (UI or API) now gets MLflow logging, params/metrics, and
 # trace_id tagging for free, instead of a second hand-maintained chain set.
 from src.chains.step6_agent_wrappers_mlflow import (
-    retrieval_chain,
     citation_chain,
-    summarization_chain,
+    retrieval_chain,
     risk_assessment_chain,
+    summarization_chain,
     traced_query_run,
 )
-from src.observability.logging_config import get_logger, new_trace_id, trace_id_scope
 from src.config import get_settings
+from src.observability.cost_tracking import all_usage, summarize, usage_scope
+from src.observability.logging_config import get_logger, new_trace_id, trace_id_scope
 
 logger = get_logger(__name__)
 settings = get_settings()
@@ -37,6 +38,7 @@ settings = get_settings()
 # -------------------------------
 # Orchestrator
 # -------------------------------
+
 
 class MultiAgentOrchestrator:
     """
@@ -60,16 +62,14 @@ class MultiAgentOrchestrator:
         known even if this raises before completion — otherwise it's
         generated fresh, as before."""
         trace_id = trace_id or new_trace_id()
-        with trace_id_scope(trace_id), traced_query_run(trace_id, query):
+        with trace_id_scope(trace_id), traced_query_run(trace_id, query), usage_scope():
             final_result: Dict[str, Any] = {}
             async for event in self._run_stages(query, trace_id):
                 if event["stage"] == "final":
                     final_result = event["data"]
             return final_result
 
-    async def run_events(
-        self, query: str, trace_id: str | None = None
-    ) -> AsyncIterator[Dict[str, Any]]:
+    async def run_events(self, query: str, trace_id: str | None = None) -> AsyncIterator[Dict[str, Any]]:
         """
         Same orchestration as `run()`, but yields one event per stage
         (retrieval, citation, summarization, risk_assessment, final) as it
@@ -80,7 +80,7 @@ class MultiAgentOrchestrator:
         the caller is responsible for turning that into an "error" SSE event.
         """
         trace_id = trace_id or new_trace_id()
-        with trace_id_scope(trace_id), traced_query_run(trace_id, query):
+        with trace_id_scope(trace_id), traced_query_run(trace_id, query), usage_scope():
             async for event in self._run_stages(query, trace_id):
                 yield event
 
@@ -159,6 +159,7 @@ class MultiAgentOrchestrator:
         # -------------------------------
         # 5. Audit metadata
         # -------------------------------
+        usage_summary = summarize(all_usage())
         audit_trail = {
             "trace_id": trace_id,
             "query": query,
@@ -170,6 +171,15 @@ class MultiAgentOrchestrator:
                 "risk_assessment",
             ],
             "timestamp": start_time,
+            # Cost/usage tracking (roadmap §3.6): tokens + estimated $ cost
+            # for every OpenAI call made during this query (embeddings +
+            # chat completion), aggregated via src.observability.cost_tracking.
+            "token_usage": {
+                "prompt_tokens": usage_summary["prompt_tokens"],
+                "completion_tokens": usage_summary["completion_tokens"],
+                "embedding_tokens": usage_summary["embedding_tokens"],
+            },
+            "estimated_cost_usd": usage_summary["estimated_cost_usd"],
         }
 
         logger.info(
@@ -201,6 +211,7 @@ class MultiAgentOrchestrator:
 # -------------------------------
 # Sync convenience wrapper
 # -------------------------------
+
 
 def run_orchestrator(query: str, model_version: str = settings.model_version) -> Dict[str, Any]:
     orchestrator = MultiAgentOrchestrator(model_version=model_version)

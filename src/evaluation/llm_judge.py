@@ -80,9 +80,7 @@ def _parse_judge_response(raw: str) -> Dict[str, Any]:
     }
 
 
-def judge_answer(
-    query: str, answer: str, retrieved_chunks: List[Dict[str, Any]]
-) -> Dict[str, Any]:
+def judge_answer(query: str, answer: str, retrieved_chunks: List[Dict[str, Any]]) -> Dict[str, Any]:
     """
     Calls `settings.eval_judge_model` to score one generated answer.
     Returns {"faithfulness": float, "citation_accuracy": float, "reasoning": str}.
@@ -104,7 +102,7 @@ def judge_answer(
         ],
         response_format={"type": "json_object"},
     )
-    raw = response.choices[0].message.content.strip()
+    raw = (response.choices[0].message.content or "").strip()
 
     try:
         return _parse_judge_response(raw)

@@ -85,14 +85,22 @@ governance choice: control flow stays deterministic and auditable. See
 python -m venv .venv
 source .venv/bin/activate  # or .venv\Scripts\activate on Windows
 
-pip install -e ".[dev]"     # installs the project (see pyproject.toml) + pytest
+pip install -e ".[dev,data]"   # installs the project (see pyproject.toml) + pytest + dvc
 
 cp .env.example .env        # then fill in OPENAI_API_KEY
+
+dvc pull                    # fetches data/raw/*.pdf (source PDFs) from the DVC remote
 ```
 
 `pip install -e .` makes `src` importable as a package root, matching the
 `from src.xxx import yyy` convention used throughout the codebase — no manual
 `PYTHONPATH` juggling required.
+
+`data/raw/` (source PDFs) is DVC-tracked, not plain git — see
+[docs/11_data_lifecycle.md](docs/11_data_lifecycle.md) for what's tracked
+where and why. `dvc pull` is only needed if you want the original PDFs on
+disk; chunking/retrieval/generation never read `data/raw/` directly, only
+`data/processed/` (plain git), so skipping it doesn't block running the app.
 
 ## Running it
 
@@ -121,17 +129,27 @@ cd web && npm install && npm run dev
 pytest src/tests -v
 ```
 
-### Running the API in Docker
+### Running the full stack in Docker
+
+```bash
+docker compose -f docker/docker-compose.yml up -d --build
+# http://localhost:5173  — web UI
+# http://localhost:8000/health — API
+# http://localhost:5000 — MLflow UI
+```
+
+One command brings up MLflow, the API, and the web UI together — the `web`
+service (`docker/Dockerfile.web`) is a multi-stage build (Node build stage →
+nginx serving the static bundle). `data/faiss`, the retrieval/step5 caches,
+and `data/audit_log` persist across API restarts via named volumes.
+
+To run just the API + MLflow (e.g. while iterating on the frontend locally
+via `npm run dev` instead — see above):
 
 ```bash
 docker compose -f docker/docker-compose.yml up -d --build mlflow api
 curl http://localhost:8000/health
 ```
-
-Brings up the API alongside a real MLflow tracking server on the same
-Docker network (`MLFLOW_TRACKING_URI=http://mlflow:5000` is set for the `api`
-service in `docker-compose.yml`); `data/faiss`, the retrieval/step5 caches,
-and `data/audit_log` persist across restarts via named volumes.
 
 ### Regenerating the TypeScript API contract
 

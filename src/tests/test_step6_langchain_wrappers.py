@@ -1,7 +1,7 @@
 import pytest
 
-from src.orchestrator import langchain_wrappers as lw
 import src.orchestrator.multi_agent_orchestrator as mao
+from src.orchestrator import langchain_wrappers as lw
 
 
 # -------------------------------
@@ -35,11 +35,7 @@ async def test_citation_chain_payload(monkeypatch):
         }
 
     # Wrap the mock in a RunnableLambda using helper
-    monkeypatch.setattr(
-        lw,
-        "citation_chain",
-        lw.make_chain(lambda p: mock_citation(p["query"], p["retrieval_result"]))
-    )
+    monkeypatch.setattr(lw, "citation_chain", lw.make_chain(lambda p: mock_citation(p["query"], p["retrieval_result"])))
 
     payload = {"query": "test", "retrieval_result": {"documents": []}}
     result = await lw.citation_chain.ainvoke(payload)
@@ -86,9 +82,9 @@ async def test_orchestrator_with_langchain(monkeypatch):
 
     # Patch chains where MultiAgentOrchestrator actually imports them
     monkeypatch.setattr(mao, "retrieval_chain", lw.make_chain(mock_retrieval))
-    monkeypatch.setattr(mao, "citation_chain", lw.make_chain(
-        lambda p: mock_citation(p["query"], p["retrieval_result"])
-    ))
+    monkeypatch.setattr(
+        mao, "citation_chain", lw.make_chain(lambda p: mock_citation(p["query"], p["retrieval_result"]))
+    )
     monkeypatch.setattr(mao, "summarization_chain", lw.make_chain(mock_summary))
     monkeypatch.setattr(mao, "risk_assessment_chain", lw.make_chain(mock_risk))
 

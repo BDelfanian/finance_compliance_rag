@@ -9,8 +9,8 @@ NO new citations
 NO scope expansion
 """
 
-from typing import Dict, Any, List
 import re
+from typing import Any, Dict, List
 
 from src.orchestrator.agent_schema import AgentResult
 from src.orchestrator.agent_validation import validate_agent_result
@@ -70,7 +70,7 @@ def _clean_answer_text(answer: str) -> List[str]:
         # Remove leading bullet prefixes
         for prefix in ["- ", "• ", "* "]:
             if line.startswith(prefix):
-                line = line[len(prefix):].strip()
+                line = line[len(prefix) :].strip()
 
         cleaned_lines.append(line)
 
@@ -115,7 +115,7 @@ async def summarization_agent(
     sentences = _clean_answer_text(answer_text)
 
     if not sentences:
-        result: AgentResult = {
+        result = {
             "agent_name": "summarization",
             "answer": "Summary unavailable due to unprocessable source content.",
             "citations": citations,
@@ -143,7 +143,7 @@ async def summarization_agent(
     # Summary confidence must not exceed source confidence
     summary_confidence = round(min(base_confidence, 0.95), 3)
 
-    result: AgentResult = {
+    result = {
         "agent_name": "summarization",
         "answer": summary_text,
         "citations": citations,

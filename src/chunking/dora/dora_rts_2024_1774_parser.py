@@ -8,6 +8,7 @@ matched to its immediately preceding CHAPTER marker correctly. Reuses
 dora_parser's article-finding/chunk-assembly logic directly, same as
 gdpr_parser.py.
 """
+
 from typing import Dict, List
 
 from src.chunking.dora.dora_parser import build_article_chunks as _build_article_chunks

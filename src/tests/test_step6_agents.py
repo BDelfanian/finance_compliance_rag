@@ -14,20 +14,19 @@ Uses fixtures and monkeypatching to avoid dependence on LLMs or vector stores.
 """
 
 import pytest
-import asyncio
 
-from src.agents import retrieval_agent as ra
 from src.agents import citation_agent as ca
-from src.agents import summarization_agent as sa
+from src.agents import retrieval_agent as ra
 from src.agents import risk_assessment_agent as risk
-from src.orchestrator.multi_agent_orchestrator import MultiAgentOrchestrator
+from src.agents import summarization_agent as sa
 from src.orchestrator.agent_validation import validate_agent_result
 from src.orchestrator.langchain_wrappers import make_chain
-
+from src.orchestrator.multi_agent_orchestrator import MultiAgentOrchestrator
 
 # -------------------------------
 # Fixtures
 # -------------------------------
+
 
 @pytest.fixture
 def retrieval_result_fixture():
@@ -61,13 +60,14 @@ def citation_result_fixture():
             {"source_reference": "REG-2", "excerpt": "Another regulation"},
         ],
         "confidence": 0.72,
-        "timestamp": "2026-01-03T00:00:00"
+        "timestamp": "2026-01-03T00:00:00",
     }
 
 
 # -------------------------------
 # Retrieval Agent Tests
 # -------------------------------
+
 
 @pytest.mark.asyncio
 async def test_retrieval_agent_returns_documents(monkeypatch):
@@ -76,7 +76,7 @@ async def test_retrieval_agent_returns_documents(monkeypatch):
         "src.agents.retrieval_agent.retrieve",
         lambda query_text, vector_store_key: {
             "retrieved_chunks": [{"source_reference": f"{vector_store_key}-1", "text": "chunk text"}]
-        }
+        },
     )
 
     result = await ra.retrieval_agent("test query")
@@ -90,8 +90,7 @@ async def test_retrieval_agent_returns_documents(monkeypatch):
 @pytest.mark.asyncio
 async def test_retrieval_agent_no_results(monkeypatch):
     monkeypatch.setattr(
-        "src.agents.retrieval_agent.retrieve",
-        lambda query_text, vector_store_key: {"retrieved_chunks": []}
+        "src.agents.retrieval_agent.retrieve", lambda query_text, vector_store_key: {"retrieved_chunks": []}
     )
 
     with pytest.raises(ValueError):
@@ -101,6 +100,7 @@ async def test_retrieval_agent_no_results(monkeypatch):
 # -------------------------------
 # Citation Agent Tests
 # -------------------------------
+
 
 @pytest.mark.asyncio
 async def test_citation_agent_returns_structured_output(monkeypatch):
@@ -116,8 +116,8 @@ async def test_citation_agent_returns_structured_output(monkeypatch):
                 {"source_reference": "REG-2", "excerpt": "Unused chunk"},
             ],
             "answer_confidence": 0.8,
-            "timestamp": "2026-01-03T00:00:00"
-        }
+            "timestamp": "2026-01-03T00:00:00",
+        },
     )
 
     result = await ca.citation_agent("test query", {"retrieved_chunks": []})
@@ -140,8 +140,8 @@ async def test_citation_agent_no_citations_when_answer_uses_none(monkeypatch):
             "answer": "Information not available in retrieved sources.",
             "retrieved_chunks": [{"source_reference": "REG-1", "excerpt": "chunk"}],
             "answer_confidence": 0.3,
-            "timestamp": "2026-01-03T00:00:00"
-        }
+            "timestamp": "2026-01-03T00:00:00",
+        },
     )
 
     result = await ca.citation_agent("test query", {"retrieved_chunks": []})
@@ -151,16 +151,50 @@ async def test_citation_agent_no_citations_when_answer_uses_none(monkeypatch):
     assert len(result["retrieved_chunks"]) == 1
 
 
+@pytest.mark.asyncio
+async def test_citation_agent_surfaces_injection_warning(monkeypatch):
+    # STEP 5 (generate_citation_bound_answer) flags injection_detected when a
+    # retrieved chunk's text looks injection-shaped; STEP 6's job is only to
+    # translate that into an AgentResult warning (roadmap §3.6).
+    monkeypatch.setattr(
+        "src.agents.citation_agent.generate_citation_bound_answer_cached",
+        lambda query_text, top_k=5: {
+            "answer": "Entities must disclose X [REG-1].",
+            "retrieved_chunks": [{"source_reference": "REG-1", "excerpt": "chunk"}],
+            "answer_confidence": 0.8,
+            "timestamp": "2026-01-03T00:00:00",
+            "injection_detected": True,
+        },
+    )
+
+    result = await ca.citation_agent("test query", {"retrieved_chunks": []})
+    assert "Anomalous retrieved chunk text" in result["agent_result"]["warnings"]
+
+
+@pytest.mark.asyncio
+async def test_citation_agent_no_injection_warning_by_default(monkeypatch):
+    monkeypatch.setattr(
+        "src.agents.citation_agent.generate_citation_bound_answer_cached",
+        lambda query_text, top_k=5: {
+            "answer": "Entities must disclose X [REG-1].",
+            "retrieved_chunks": [{"source_reference": "REG-1", "excerpt": "chunk"}],
+            "answer_confidence": 0.8,
+            "timestamp": "2026-01-03T00:00:00",
+        },
+    )
+
+    result = await ca.citation_agent("test query", {"retrieved_chunks": []})
+    assert result["agent_result"]["warnings"] == []
+
+
 # -------------------------------
 # Summarization Agent Tests
 # -------------------------------
 
+
 @pytest.mark.asyncio
 async def test_summarization_executive_mode(citation_result_fixture):
-    result = await sa.summarization_agent(
-        citation_result=citation_result_fixture,
-        mode="executive"
-    )
+    result = await sa.summarization_agent(citation_result=citation_result_fixture, mode="executive")
     validate_agent_result(result)
     assert "-" not in result["answer"]
     assert len(result["answer"].split(".")) <= 3
@@ -169,10 +203,7 @@ async def test_summarization_executive_mode(citation_result_fixture):
 
 @pytest.mark.asyncio
 async def test_summarization_audit_mode(citation_result_fixture):
-    result = await sa.summarization_agent(
-        citation_result=citation_result_fixture,
-        mode="audit"
-    )
+    result = await sa.summarization_agent(citation_result=citation_result_fixture, mode="audit")
     validate_agent_result(result)
     assert len(result["answer"].split(".")) <= 5
     assert result["confidence"] <= citation_result_fixture["confidence"]
@@ -196,15 +227,13 @@ async def test_summarization_missing_answer():
 @pytest.mark.asyncio
 async def test_summarization_invalid_mode(citation_result_fixture):
     with pytest.raises(ValueError):
-        await sa.summarization_agent(
-            citation_result=citation_result_fixture,
-            mode="marketing"
-        )
+        await sa.summarization_agent(citation_result=citation_result_fixture, mode="marketing")
 
 
 # -------------------------------
 # Risk Assessment Agent Tests
 # -------------------------------
+
 
 @pytest.mark.asyncio
 async def test_risk_agent_low_confidence(citation_result_fixture, retrieval_result_fixture):
@@ -213,8 +242,7 @@ async def test_risk_agent_low_confidence(citation_result_fixture, retrieval_resu
     low_conf_citation["confidence"] = 0.5
 
     result = await risk.risk_assessment_agent(
-        citation_result=low_conf_citation,
-        retrieval_result=retrieval_result_fixture
+        citation_result=low_conf_citation, retrieval_result=retrieval_result_fixture
     )
 
     assert "low" in " ".join(result["warnings"]).lower()
@@ -227,10 +255,7 @@ async def test_risk_agent_partial_coverage(citation_result_fixture, retrieval_re
     citation_copy = citation_result_fixture.copy()
     citation_copy["citations"] = [citation_copy["citations"][0]]
 
-    result = await risk.risk_assessment_agent(
-        citation_result=citation_copy,
-        retrieval_result=retrieval_result_fixture
-    )
+    result = await risk.risk_assessment_agent(citation_result=citation_copy, retrieval_result=retrieval_result_fixture)
 
     assert "partial" in " ".join(result["warnings"]).lower()
 
@@ -238,6 +263,7 @@ async def test_risk_agent_partial_coverage(citation_result_fixture, retrieval_re
 # -------------------------------
 # Orchestrator Tests
 # -------------------------------
+
 
 @pytest.fixture
 def orchestrator(monkeypatch):
@@ -247,8 +273,14 @@ def orchestrator(monkeypatch):
     # each of which .ainvoke()s a single positional input.
     async def mock_retrieval_chain_fn(query: str):
         return {
-            "agent_result": {"agent_name": "retrieval", "answer": "mock", "citations": [], "confidence": 1.0, "warnings": []},
-            "retrieved_chunks": [{"source_reference": "REG-1", "text": "chunk"}]
+            "agent_result": {
+                "agent_name": "retrieval",
+                "answer": "mock",
+                "citations": [],
+                "confidence": 1.0,
+                "warnings": [],
+            },
+            "retrieved_chunks": [{"source_reference": "REG-1", "text": "chunk"}],
         }
 
     async def mock_citation_chain_fn(payload: dict):
@@ -271,7 +303,7 @@ def orchestrator(monkeypatch):
             "answer": "Mock summary",
             "citations": citation_result["citations"],
             "confidence": 0.75,
-            "warnings": []
+            "warnings": [],
         }
 
     async def mock_risk_chain_fn(payload: dict):
@@ -281,10 +313,11 @@ def orchestrator(monkeypatch):
             "answer": "Partial regulatory coverage detected.",
             "citations": citation_result["citations"],
             "confidence": 0.6,
-            "warnings": ["Partial regulatory coverage"]
+            "warnings": ["Partial regulatory coverage"],
         }
 
     from src.orchestrator import multi_agent_orchestrator as mao
+
     monkeypatch.setattr(mao, "retrieval_chain", make_chain(mock_retrieval_chain_fn))
     monkeypatch.setattr(mao, "citation_chain", make_chain(mock_citation_chain_fn))
     monkeypatch.setattr(mao, "summarization_chain", make_chain(mock_summarization_chain_fn))
@@ -309,6 +342,7 @@ async def test_orchestrator_fail_fast_missing_retrieval(monkeypatch):
         return None
 
     from src.orchestrator import multi_agent_orchestrator as mao
+
     monkeypatch.setattr(mao, "retrieval_chain", make_chain(empty_retrieval))
 
     orchestrator = MultiAgentOrchestrator(model_version="test-model")
@@ -324,8 +358,14 @@ async def test_orchestrator_fail_fast_missing_citation_answer(monkeypatch):
     # must instead gate on the citation agent failing to produce an answer.
     async def mock_retrieval_chain_fn(query: str):
         return {
-            "agent_result": {"agent_name": "retrieval", "answer": "mock", "citations": [], "confidence": 1.0, "warnings": []},
-            "retrieved_chunks": [{"source_reference": "REG-1", "text": "chunk"}]
+            "agent_result": {
+                "agent_name": "retrieval",
+                "answer": "mock",
+                "citations": [],
+                "confidence": 1.0,
+                "warnings": [],
+            },
+            "retrieved_chunks": [{"source_reference": "REG-1", "text": "chunk"}],
         }
 
     async def bad_citation_chain_fn(payload: dict):
@@ -342,6 +382,7 @@ async def test_orchestrator_fail_fast_missing_citation_answer(monkeypatch):
         }
 
     from src.orchestrator import multi_agent_orchestrator as mao
+
     monkeypatch.setattr(mao, "retrieval_chain", make_chain(mock_retrieval_chain_fn))
     monkeypatch.setattr(mao, "citation_chain", make_chain(bad_citation_chain_fn))
 

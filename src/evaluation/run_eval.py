@@ -154,9 +154,9 @@ def run_eval(
         "num_no_answer": len(no_answer),
         "mean_precision_at_5": mean([r["precision_at_5"] for r in standard]),
         "mean_mrr": mean([r["reciprocal_rank"] for r in standard]),
-        "abstention_retrieval_accuracy": mean(
-            [1.0 if r["abstention_retrieval_correct"] else 0.0 for r in no_answer]
-        ) if no_answer else None,
+        "abstention_retrieval_accuracy": mean([1.0 if r["abstention_retrieval_correct"] else 0.0 for r in no_answer])
+        if no_answer
+        else None,
     }
 
     if not retrieval_only:
@@ -198,9 +198,11 @@ def _ensure_eval_experiment() -> None:
 
 def _git_commit_sha() -> str:
     try:
-        return subprocess.check_output(
-            ["git", "rev-parse", "--short", "HEAD"], cwd=Path(__file__).resolve().parents[2]
-        ).decode().strip()
+        return (
+            subprocess.check_output(["git", "rev-parse", "--short", "HEAD"], cwd=Path(__file__).resolve().parents[2])
+            .decode()
+            .strip()
+        )
     except Exception:
         return "unknown"
 
@@ -209,13 +211,15 @@ def _log_to_mlflow(eval_result: Dict[str, Any], results_file: Path) -> None:
     _ensure_eval_experiment()
     with mlflow.start_run(run_name=f"eval_{datetime.now(timezone.utc).strftime('%Y%m%dT%H%M%SZ')}"):
         mlflow.set_tag("git_commit", _git_commit_sha())
-        mlflow.log_params({
-            "embedding_model": settings.embedding_model,
-            "llm_model": settings.llm_model,
-            "eval_judge_model": settings.eval_judge_model,
-            "similarity_threshold": settings.similarity_threshold,
-            "num_queries": eval_result["aggregate"]["num_queries"],
-        })
+        mlflow.log_params(
+            {
+                "embedding_model": settings.embedding_model,
+                "llm_model": settings.llm_model,
+                "eval_judge_model": settings.eval_judge_model,
+                "similarity_threshold": settings.similarity_threshold,
+                "num_queries": eval_result["aggregate"]["num_queries"],
+            }
+        )
         metrics = {k: v for k, v in eval_result["aggregate"].items() if isinstance(v, (int, float))}
         mlflow.log_metrics(metrics)
         mlflow.log_artifact(str(results_file))
@@ -260,12 +264,18 @@ def _check_regression(aggregate: Dict[str, Any], baseline: Dict[str, float], tol
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument("--limit", type=int, default=None, help="Only run the first N golden queries (cost control).")
-    parser.add_argument("--retrieval-only", action="store_true", help="Skip generation + LLM-judge; retrieval metrics only.")
+    parser.add_argument(
+        "--retrieval-only", action="store_true", help="Skip generation + LLM-judge; retrieval metrics only."
+    )
     parser.add_argument("--max-workers", type=int, default=8, help="Thread pool size for concurrent queries.")
     parser.add_argument("--tolerance", type=float, default=0.05, help="Allowed drop below baseline before failing.")
-    parser.add_argument("--no-gate", action="store_true", help="Run and log, but always exit 0 (skip regression check).")
+    parser.add_argument(
+        "--no-gate", action="store_true", help="Run and log, but always exit 0 (skip regression check)."
+    )
     parser.add_argument("--no-mlflow", action="store_true", help="Skip MLflow logging.")
-    parser.add_argument("--update-baseline", action="store_true", help="Write current results as the new baseline instead of gating.")
+    parser.add_argument(
+        "--update-baseline", action="store_true", help="Write current results as the new baseline instead of gating."
+    )
     args = parser.parse_args()
 
     start = time.perf_counter()
@@ -308,8 +318,8 @@ def main() -> int:
     failures = _check_regression(aggregate, baseline, args.tolerance)
     if failures:
         print("\nREGRESSION GATE FAILED:")
-        for f in failures:
-            print(f"  - {f}")
+        for failure in failures:
+            print(f"  - {failure}")
         return 1
 
     print("\nRegression gate passed.")

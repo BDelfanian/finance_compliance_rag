@@ -8,9 +8,11 @@ OJ_PATTERNS = [
     r"\bEN\b",
 ]
 
+
 def load_chunks(json_path: Path):
     with open(json_path, "r", encoding="utf-8") as f:
         return json.load(f)
+
 
 def validate_article_boundary(chunks, document_id_prefix="dora"):
     for c in chunks:
@@ -33,11 +35,13 @@ def validate_article_order(chunks, label="DORA"):
     if article_numbers != sorted(article_numbers):
         print(f"⚠ {label} articles are not in numeric order")
 
+
 def validate_oj_removal(chunks):
     for c in chunks:
         for pattern in OJ_PATTERNS:
             if re.search(pattern, c["text"], re.MULTILINE):
                 print(f"⚠ Official Journal noise found in {c['chunk_id']}")
+
 
 def run_validation(json_path: Path, document_id_prefix="dora", label="DORA"):
     chunks = load_chunks(json_path)

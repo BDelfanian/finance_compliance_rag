@@ -39,7 +39,11 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
-dev = ["pytest", "pytest-asyncio", "httpx"]
+dev = ["pytest", "pytest-asyncio", "httpx", "ruff", "mypy"]
+# Data lifecycle management (roadmap §3.6) — versions data/raw/ (source
+# PDFs) and drives the chunk/index pipeline reproducibility declared in
+# dvc.yaml. Not needed to run the app or test suite, only to manage data.
+data = ["dvc"]
 
 [tool.setuptools.packages.find]
 where = ["."]
@@ -48,3 +52,34 @@ include = ["src*"]
 [tool.pytest.ini_options]
 testpaths = ["src/tests"]
 asyncio_mode = "auto"
+
+[tool.ruff]
+line-length = 120
+extend-exclude = ["archive"]
+
+[tool.ruff.lint]
+select = ["E", "F", "I"]
+
+[tool.ruff.lint.per-file-ignores]
+# sys.path.append(...) must run before these imports — that's the point of
+# the bootstrap, not an accident E402 should flag.
+"src/tests/test_gdpr_retrieval_validation.py" = ["E402"]
+"src/tests/test_retrieval_validation.py" = ["E402"]
+"src/ui/ui_rag_full_advanced.py" = ["E402"]
+# Long argparse help strings / prompt content / test fixture literals read
+# better unwrapped than forced onto multiple lines.
+"src/evaluation/run_eval.py" = ["E501"]
+"src/generation/citation_bound_answer_generation.py" = ["E501"]
+"src/retrieval/run_embeddings_retrieval.py" = ["E501"]
+"src/tests/test_step6_agents.py" = ["E501"]
+
+[tool.mypy]
+files = ["src", "app"]
+exclude = ["archive"]
+# Not --strict: agent I/O contracts are intentionally loose Dict[str, Any] /
+# TypedDict shapes by design (src/orchestrator/agent_schema.py) — strict
+# mode would demand a much bigger typing pass than "hardening" scope calls
+# for. Default mode still catches real errors (wrong arg types, unreachable
+# code, etc.) without demanding full annotation coverage.
+ignore_missing_imports = true
+warn_unused_ignores = true

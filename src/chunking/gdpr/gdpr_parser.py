@@ -4,6 +4,7 @@ formatting — so this reuses dora_parser's chapter/article regex and chunk
 assembly directly rather than duplicating it. Only the per-document
 metadata differs.
 """
+
 from typing import Dict, List
 
 from src.chunking.dora.dora_parser import build_article_chunks as _build_article_chunks

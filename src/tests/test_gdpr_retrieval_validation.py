@@ -12,9 +12,11 @@ that was never wired into generation. This file exercises retrieve()
 directly instead, the same live-validated pattern test_retrieval_validation.py
 uses for the other three stores.
 """
+
+import json
 import sys
 from pathlib import Path
-import json
+
 import pytest
 
 ROOT_DIR = Path(__file__).resolve().parents[2]
@@ -37,7 +39,7 @@ def test_expected_chunks_retrieved(case):
         vector_store_key=case["vector_store_key"],
         authority=case["authority"],
         jurisdiction=case["jurisdiction"],
-        top_k=5
+        top_k=5,
     )
 
     retrieved_ids = {c["chunk_id"] for c in result["retrieved_chunks"]}
@@ -46,16 +48,14 @@ def test_expected_chunks_retrieved(case):
         assert expected in retrieved_ids
 
 
-@pytest.mark.parametrize(
-    "case", [c for c in GDPR_GOLDEN_QUERIES if c.get("type") == "no_answer"]
-)
+@pytest.mark.parametrize("case", [c for c in GDPR_GOLDEN_QUERIES if c.get("type") == "no_answer"])
 def test_no_answer_cases_retrieve_nothing(case):
     result = retrieve(
         query_text=case["query"],
         vector_store_key=case["vector_store_key"],
         authority=case["authority"],
         jurisdiction=case["jurisdiction"],
-        top_k=5
+        top_k=5,
     )
 
     assert result["retrieved_chunks"] == []
@@ -68,7 +68,7 @@ def test_similarity_threshold_respected(case):
         vector_store_key=case["vector_store_key"],
         authority=case["authority"],
         jurisdiction=case["jurisdiction"],
-        top_k=5
+        top_k=5,
     )
 
     for c in result["retrieved_chunks"]:
@@ -82,7 +82,7 @@ def test_no_cross_regulatory_contamination(case):
         vector_store_key=case["vector_store_key"],
         authority=case["authority"],
         jurisdiction=case["jurisdiction"],
-        top_k=5
+        top_k=5,
     )
 
     for c in result["retrieved_chunks"]:

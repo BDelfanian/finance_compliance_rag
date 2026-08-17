@@ -35,6 +35,17 @@ class Settings(BaseSettings):
     llm_model: str = "gpt-5-mini"
 
     # -------------------------------
+    # Cost/usage tracking (roadmap §3.6 "Cost/usage tracking") — $ per 1K
+    # tokens, keyed by model name and token kind. Placeholder rates: adjust
+    # to match real billing if it differs from these. Overridable via env
+    # as a JSON object, e.g. TOKEN_PRICING='{"gpt-5-mini": {"prompt": 0.0003, "completion": 0.0025}}'.
+    # -------------------------------
+    token_pricing: dict[str, dict[str, float]] = {
+        "gpt-5-mini": {"prompt": 0.00025, "completion": 0.002},
+        "text-embedding-3-small": {"embedding": 0.00002},
+    }
+
+    # -------------------------------
     # Retrieval (src/retrieval/run_embeddings_retrieval.py)
     # -------------------------------
     vector_dim: int = 1536
@@ -46,6 +57,12 @@ class Settings(BaseSettings):
     # Generation (src/generation/citation_bound_answer_generation.py)
     # -------------------------------
     citation_top_k: int = 5
+    # Versioned prompt template (roadmap §3.6 "Prompt versioning") — the
+    # citation-bound prompt lives in prompts/<prompt_version>.md instead of
+    # an inline f-string, so prompt changes are reviewable diffs with
+    # history, and every generation logs which version produced it.
+    prompts_dir: Path = Path("prompts")
+    prompt_version: str = "citation_bound_v1"
 
     # -------------------------------
     # Paths — repo-root relative, resolved to absolute in the validators below
@@ -90,6 +107,10 @@ class Settings(BaseSettings):
     # a lightweight stand-in for the roadmap's durable audit log (§3.3),
     # not the full SQLite/Postgres table proposed there.
     audit_log_path: Path = Path("data/audit_log")
+    # Human-in-the-loop review workflow (roadmap §3.6) — approve/reject/
+    # annotate records per trace_id, doubling as the compliance sign-off
+    # record docs/06's MRM section calls for, applied per-answer.
+    review_log_path: Path = Path("data/review_log")
     # Origins allowed to call the API cross-origin, e.g. a local Vite dev
     # server for the future TypeScript UI (roadmap §3.4).
     api_cors_origins: list[str] = ["http://localhost:5173"]

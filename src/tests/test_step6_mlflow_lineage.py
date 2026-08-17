@@ -1,8 +1,10 @@
 # src/tests/test_step6_mlflow_lineage.py
-import pytest
 from unittest.mock import AsyncMock, patch
-from langchain_core.runnables import RunnableLambda
+
+import pytest
+
 from src.chains import step6_agent_wrappers_mlflow as wrappers
+
 
 @pytest.mark.asyncio
 async def test_step6_agent_lineage_smoke():
@@ -39,23 +41,29 @@ async def test_step6_agent_lineage_smoke():
     }
 
     # Patch MLflow and agent functions
-    with patch("mlflow.log_artifact"), patch("mlflow.log_params"), \
-         patch("src.chains.step6_agent_wrappers_mlflow.retrieval_chain.afunc",
-               new=AsyncMock(return_value=frozen_retrieval_output)), \
-         patch("src.chains.step6_agent_wrappers_mlflow.citation_chain.afunc",
-               new=AsyncMock(return_value=frozen_citation_output)):
-
+    with (
+        patch("mlflow.log_artifact"),
+        patch("mlflow.log_params"),
+        patch(
+            "src.chains.step6_agent_wrappers_mlflow.retrieval_chain.afunc",
+            new=AsyncMock(return_value=frozen_retrieval_output),
+        ),
+        patch(
+            "src.chains.step6_agent_wrappers_mlflow.citation_chain.afunc",
+            new=AsyncMock(return_value=frozen_citation_output),
+        ),
+    ):
         # 1️⃣ Test retrieval_chain
-        retrieval_result = await wrappers.retrieval_chain.ainvoke(
-            {"query": "Basel III capital requirements"}
-        )
+        retrieval_result = await wrappers.retrieval_chain.ainvoke({"query": "Basel III capital requirements"})
         assert retrieval_result["agent_result"]["agent_name"] == "retrieval"
         assert len(retrieval_result["retrieved_chunks"]) == 2
 
         # 2️⃣ Test citation_chain
-        citation_result = await wrappers.citation_chain.ainvoke({
-            "query": "Basel III capital requirements",
-            "retrieval_result": retrieval_result,
-        })
+        citation_result = await wrappers.citation_chain.ainvoke(
+            {
+                "query": "Basel III capital requirements",
+                "retrieval_result": retrieval_result,
+            }
+        )
         assert citation_result["agent_result"]["agent_name"] == "citation"
         assert "Banks must maintain" in citation_result["agent_result"]["answer"]

@@ -1,6 +1,7 @@
+import json
 import sys
 from pathlib import Path
-import json
+
 import pytest
 
 # --- Path bootstrap ---
@@ -25,7 +26,7 @@ def test_expected_chunks_retrieved(case):
         vector_store_key=case["vector_store_key"],
         authority=case["authority"],
         jurisdiction=case["jurisdiction"],
-        top_k=5
+        top_k=5,
     )
 
     retrieved_ids = {c["chunk_id"] for c in result["retrieved_chunks"]}
@@ -34,9 +35,7 @@ def test_expected_chunks_retrieved(case):
         assert expected in retrieved_ids
 
 
-@pytest.mark.parametrize(
-    "case", [c for c in GOLDEN_QUERIES if c.get("type") == "no_answer"]
-)
+@pytest.mark.parametrize("case", [c for c in GOLDEN_QUERIES if c.get("type") == "no_answer"])
 def test_no_answer_cases_retrieve_nothing(case):
     """Adversarial/out-of-domain queries must not clear the similarity
     threshold for any chunk — this is what lets generation correctly say
@@ -47,7 +46,7 @@ def test_no_answer_cases_retrieve_nothing(case):
         vector_store_key=case["vector_store_key"],
         authority=case["authority"],
         jurisdiction=case["jurisdiction"],
-        top_k=5
+        top_k=5,
     )
 
     assert result["retrieved_chunks"] == []
@@ -60,7 +59,7 @@ def test_similarity_threshold_respected(case):
         vector_store_key=case["vector_store_key"],
         authority=case["authority"],
         jurisdiction=case["jurisdiction"],
-        top_k=5
+        top_k=5,
     )
 
     for c in result["retrieved_chunks"]:
@@ -74,7 +73,7 @@ def test_no_cross_regulatory_contamination(case):
         vector_store_key=case["vector_store_key"],
         authority=case["authority"],
         jurisdiction=case["jurisdiction"],
-        top_k=5
+        top_k=5,
     )
 
     for c in result["retrieved_chunks"]:

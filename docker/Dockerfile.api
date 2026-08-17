@@ -9,6 +9,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends build-essential
 COPY pyproject.toml README.md ./
 COPY src ./src
 COPY app ./app
+COPY prompts ./prompts
 
 # Install the project itself (editable-off) so `src.*`/`app.*` imports
 # resolve the same way they do in local dev (see pyproject.toml's

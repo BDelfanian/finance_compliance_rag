@@ -12,10 +12,11 @@ IMPORTANT:
 
 from langchain_core.runnables import RunnableLambda
 
-from src.agents.retrieval_agent import retrieval_agent
 from src.agents.citation_agent import citation_agent
-from src.agents.summarization_agent import summarization_agent
+from src.agents.retrieval_agent import retrieval_agent
 from src.agents.risk_assessment_agent import risk_assessment_agent
+from src.agents.summarization_agent import summarization_agent
+
 
 # -------------------------------
 # Helper for test-friendly chain creation
@@ -23,24 +24,23 @@ from src.agents.risk_assessment_agent import risk_assessment_agent
 def make_chain(async_fn):
     """
     Wraps an async function in a RunnableLambda.
-    
+
     This is test-friendly and allows patching chains easily.
-    
+
     Args:
         async_fn (coroutine function): The async function to wrap.
-    
+
     Returns:
         RunnableLambda: Async-safe wrapper around the function.
     """
     return RunnableLambda(lambda x: x, afunc=async_fn)
 
+
 # -------------------------------
 # Runnable wrappers (async-safe)
 # -------------------------------
 
-retrieval_chain = make_chain(
-    retrieval_agent
-)
+retrieval_chain = make_chain(retrieval_agent)
 """Async-safe wrapper for the retrieval agent."""
 
 citation_chain = make_chain(

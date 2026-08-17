@@ -26,18 +26,25 @@ Endpoints:
 """
 
 import json
-from typing import AsyncIterator
+from datetime import datetime, timezone
+from typing import AsyncIterator, List
 
 from fastapi import FastAPI, HTTPException, status
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import StreamingResponse
 
+from app.schemas import (
+    ErrorResponse,
+    HealthResponse,
+    QueryRequest,
+    QueryResponse,
+    ReviewRecord,
+    ReviewRequest,
+)
 from src.config import get_settings
-from src.observability import audit_store
+from src.observability import audit_store, review_store
 from src.observability.logging_config import get_logger, new_trace_id
 from src.orchestrator.multi_agent_orchestrator import MultiAgentOrchestrator
-
-from app.schemas import ErrorResponse, HealthResponse, QueryRequest, QueryResponse
 
 settings = get_settings()
 logger = get_logger(__name__)
@@ -77,9 +84,7 @@ async def health() -> HealthResponse:
 )
 async def run_query(request: QueryRequest) -> QueryResponse:
     trace_id = new_trace_id()
-    orchestrator = MultiAgentOrchestrator(
-        model_version=request.model_version or settings.model_version
-    )
+    orchestrator = MultiAgentOrchestrator(model_version=request.model_version or settings.model_version)
     try:
         result = await orchestrator.run(request.query, trace_id=trace_id)
     except (RuntimeError, ValueError) as exc:
@@ -111,9 +116,7 @@ async def run_query(request: QueryRequest) -> QueryResponse:
 @app.post("/query/stream")
 async def run_query_stream(request: QueryRequest) -> StreamingResponse:
     trace_id = new_trace_id()
-    orchestrator = MultiAgentOrchestrator(
-        model_version=request.model_version or settings.model_version
-    )
+    orchestrator = MultiAgentOrchestrator(model_version=request.model_version or settings.model_version)
 
     async def event_source() -> AsyncIterator[str]:
         try:
@@ -151,3 +154,47 @@ async def get_query(trace_id: str) -> QueryResponse:
     if record is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="No run found for this trace_id.")
     return QueryResponse.model_validate(record)
+
+
+@app.post(
+    "/query/{trace_id}/review",
+    response_model=ReviewRecord,
+    status_code=status.HTTP_201_CREATED,
+    responses={400: {"model": ErrorResponse}, 404: {"model": ErrorResponse}},
+)
+async def submit_review(trace_id: str, request: ReviewRequest) -> ReviewRecord:
+    """Human-in-the-loop approve/reject/annotate action (roadmap §3.6) — can
+    only be filed against a trace_id that actually completed a run, so a
+    typo'd trace_id can't silently create an orphan review record."""
+    if not audit_store.TRACE_ID_RE.match(trace_id):
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Malformed trace_id.")
+
+    if audit_store.load_audit_record(trace_id) is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="No run found for this trace_id.")
+
+    record = ReviewRecord(
+        trace_id=trace_id,
+        timestamp=datetime.now(timezone.utc).isoformat(),
+        **request.model_dump(),
+    )
+    review_store.append_review(trace_id, record.model_dump())
+    logger.info(
+        "review submitted",
+        extra={"trace_id": trace_id, "decision": record.decision, "reviewer": record.reviewer_name},
+    )
+    return record
+
+
+@app.get(
+    "/query/{trace_id}/reviews",
+    response_model=List[ReviewRecord],
+    responses={400: {"model": ErrorResponse}, 404: {"model": ErrorResponse}},
+)
+async def get_reviews(trace_id: str) -> List[ReviewRecord]:
+    if not audit_store.TRACE_ID_RE.match(trace_id):
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Malformed trace_id.")
+
+    if audit_store.load_audit_record(trace_id) is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="No run found for this trace_id.")
+
+    return [ReviewRecord.model_validate(r) for r in review_store.load_reviews(trace_id)]

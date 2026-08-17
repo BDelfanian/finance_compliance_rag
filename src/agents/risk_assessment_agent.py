@@ -11,7 +11,8 @@ Design constraints:
 - Confidence is a first-class output
 """
 
-from typing import Dict, Any, List
+from typing import Any, Dict, List
+
 from src.orchestrator.agent_schema import AgentResult
 from src.orchestrator.agent_validation import validate_agent_result
 
@@ -20,6 +21,7 @@ from src.orchestrator.agent_validation import validate_agent_result
 # -------------------------------
 LOW_CONFIDENCE_THRESHOLD = 0.6
 MIN_CITATIONS_REQUIRED = 1
+
 
 # -------------------------------
 # Risk Assessment Agent
@@ -49,9 +51,7 @@ async def risk_assessment_agent(
 
     if len(citations) < MIN_CITATIONS_REQUIRED:
         warnings.append("Insufficient regulatory citations")
-        risk_statements.append(
-            "Answer may not be fully supported by authoritative regulatory sources."
-        )
+        risk_statements.append("Answer may not be fully supported by authoritative regulatory sources.")
 
     # -------------------------------
     # 2. Retrieval vs answer alignment
@@ -62,19 +62,13 @@ async def risk_assessment_agent(
         if chunk.get("source_reference")
     }
 
-    cited_sources = {
-        citation.get("source_reference")
-        for citation in citations
-        if citation.get("source_reference")
-    }
+    cited_sources = {citation.get("source_reference") for citation in citations if citation.get("source_reference")}
 
     uncovered_sources = retrieved_sources - cited_sources
 
     if uncovered_sources:
         warnings.append("Partial regulatory coverage")
-        risk_statements.append(
-            "Some retrieved regulatory sources were not addressed in the final answer."
-        )
+        risk_statements.append("Some retrieved regulatory sources were not addressed in the final answer.")
 
     # -------------------------------
     # 3. Confidence-based risk signals
@@ -83,9 +77,7 @@ async def risk_assessment_agent(
 
     if base_confidence < LOW_CONFIDENCE_THRESHOLD:
         warnings.append("Low model confidence")
-        risk_statements.append(
-            "The generated answer exhibits low confidence and may require manual review."
-        )
+        risk_statements.append("The generated answer exhibits low confidence and may require manual review.")
 
     # -------------------------------
     # 4. Risk-adjusted confidence

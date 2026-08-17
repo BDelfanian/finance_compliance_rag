@@ -1,16 +1,23 @@
 # Improvement Roadmap & Restructuring Plan
 
-**Status:** Phases 0 through 5 are complete (executed, tested, and verified
+**Status:** Phases 0 through 6 are complete (executed, tested, and verified
 live — see `docs/09_current_state_and_known_issues.md` for exactly what
-changed). Phase 5 ended up covering three distinct pieces: GDPR
-chunking/indexing, the shared-base-parser decision, four more documents
-added to the *existing* CSSF/DORA/EBA authorities (a second "source
-enrichment" axis the roadmap hadn't originally scoped, added at the user's
-request), and finally the originally-queued new-regulator addition —
-**NIS2** — which does join the live default query path (unlike GDPR),
-since the roadmap's own reason for recommending NIS2 first (cross-regulation
-risk detection) only works if NIS2 and DORA are searched together. Phase 6
-remains a proposal.
+changed). Phase 5 covered three distinct pieces: GDPR chunking/indexing,
+the shared-base-parser decision, four more documents added to the
+*existing* CSSF/DORA/EBA authorities (a second "source enrichment" axis the
+roadmap hadn't originally scoped, added at the user's request), and finally
+the originally-queued new-regulator addition — **NIS2** — which does join
+the live default query path (unlike GDPR), since the roadmap's own reason
+for recommending NIS2 first (cross-regulation risk detection) only works if
+NIS2 and DORA are searched together. **Phase 6 (2026-08-18)** is done: CI
+lint/type checking, prompt versioning, cost/usage tracking, security
+hardening, a human-in-the-loop review workflow, DVC for `data/raw/`
+(deliberately not `data/processed/` — see below and
+`docs/11_data_lifecycle.md`), and the containerization gap (a missing `web`
+service in `docker-compose.yml`). See `docs/09`'s "Phase 6 (Hardening) —
+complete" section for what was verified live and two real bugs found along
+the way (a missing `COPY prompts` in `Dockerfile.api`, and a pre-existing
+Windows-console unicode crash in `run_chunking.py`).
 
 ## 1. Purpose
 
@@ -318,10 +325,16 @@ manual polling burden.
   (the OpenAI account ran out of credits mid-run, confirming the gate
   fails safe rather than silently passing). Still open: CI lint/type
   checking (`ruff`/`black`/`mypy`) — the item below.
-- **CI/CD (lint & type checking)**: GitHub Actions (`.github/workflows/ci.yml`)
-  now runs `pytest` and the eval regression gate on every push/PR (Phase 2,
-  done). Still proposal-only: `ruff`/`black` (lint/format) and `mypy`
-  (typing — the codebase already uses `TypedDict`, worth going further).
+- ~~**CI/CD (lint & type checking)**~~ ✅ done 2026-08-18 (Phase 6):
+  `.github/workflows/ci.yml` runs `pytest` + the eval regression gate
+  (Phase 2) and a new `lint` job — `ruff check`, `ruff format --check`,
+  `mypy src app` (default mode, not `--strict`; agent I/O contracts are
+  intentionally loose `Dict[str, Any]`/`TypedDict` shapes by design). Not a
+  separate `black` — `ruff format` is already black-compatible. Actually run
+  against the real tree, not just wired up: 36 `ruff --fix` findings, a
+  one-time whole-codebase `ruff format` pass (the codebase had never been
+  formatted before), and 23 real `mypy` errors, all fixed rather than
+  suppressed — see `docs/09`'s Phase 6 section for the specifics.
 - ~~**Centralized config**~~ ✅ done 2026-08-16: `src/config.py`'s
   `pydantic-settings`-based `Settings` (`get_settings()`, `lru_cache`d)
   replaced the scattered module-level constants (`VECTOR_DIM`,
@@ -331,37 +344,53 @@ manual polling burden.
   (loads `.env` automatically — no more manually exporting `OPENAI_API_KEY`
   before running tests/scripts) and documented in `.env.example`. Still true:
   this is what the future API layer and eval framework will both need.
-- **Prompt versioning**: move the citation-bound prompt out of the inline
-  f-string in `generate_citation_bound_answer` into a versioned template file
-  (e.g. `prompts/citation_bound_v1.md`), referenced by version string that
-  gets logged to MLflow (§3.2). Prompt changes become reviewable diffs with
-  history, not silent edits.
-- **Human-in-the-loop review workflow**: a lightweight
-  approve/reject/annotate action on generated answers (in the TS UI),
-  persisted with the audit log. Doubles as the compliance sign-off record
-  the design docs already call for (`docs/06`'s MRM sign-off section) and as
-  a growing eval/feedback dataset.
-- **Data lifecycle management**: move `data/raw/`, `data/faiss/`,
-  `data/retrieval_cache/`, `data/step5_cache/` out of plain git and into DVC
-  (or documented external storage), addressing the "unbounded binary growth
-  in git" issue from `docs/09`. Git keeps code, chunk JSON, and config;
-  DVC (or equivalent) tracks large/binary/rebuildable artifacts with
-  versioning but without bloating the git history.
-- **Cost/usage tracking**: log OpenAI token usage and estimated $ cost per
-  query as MLflow metrics and in the audit log — necessary before this scales
-  past a personal prototype, and cheap to add now while wiring up MLflow
-  metrics anyway.
-- **Security hardening**: given regulatory/financial subject matter, add
-  basic prompt-injection resistance (retrieved chunk text is regulatory
-  language you control, but treat it as untrusted input to the LLM call
-  regardless), input validation on the future API, and a documented data
-  classification note confirming no confidential data enters the pipeline
-  (already a stated principle — worth an explicit check/test, not just a
-  docs claim).
-- **Containerization**: `Dockerfile` for the FastAPI service +
-  `docker-compose.yml` bringing up API, MLflow server, and (if adopted) a
-  vector DB together — makes the "how do I run this" answer one command
-  instead of the current multi-step manual setup.
+- ~~**Prompt versioning**~~ ✅ done 2026-08-18 (Phase 6): the citation-bound
+  prompt lives in `prompts/citation_bound_v1.md`, loaded and formatted by
+  `generate_citation_bound_answer`. `Settings.prompt_version` is logged as
+  an MLflow param on every agent run and included in the generation
+  response — prompt changes are now reviewable diffs with history, and
+  every generated answer is traceable to the prompt version that produced
+  it.
+- ~~**Human-in-the-loop review workflow**~~ ✅ done 2026-08-18 (Phase 6): a
+  lightweight approve/reject/annotate action (`POST
+  /query/{trace_id}/review`, `GET /query/{trace_id}/reviews`,
+  `src/observability/review_store.py`) persisted per trace_id, surfaced in
+  `web/`'s new `ReviewPanel.tsx`. Doubles as the compliance sign-off record
+  `docs/06`'s MRM sign-off section calls for. Known, documented limitation:
+  no auth/user-identity system exists anywhere in this app, so reviewer
+  name/role are self-reported free text, not a verified identity.
+- ~~**Data lifecycle management**~~ ✅ done 2026-08-18 (Phase 6), but
+  **not** uniformly across `data/` — a deliberate scope decision, not
+  "DVC everything": `data/raw/` (source PDFs) is DVC-tracked with a local
+  remote (swappable for real cloud storage later); `data/processed/`
+  (chunk JSON) deliberately **stays plain git**, since DVC-tracking it
+  would replace the human-reviewable diffs this doc's own §2 ingestion
+  principle depends on with opaque content hashes. New `dvc.yaml` declares
+  the chunk/index pipeline stages for `dvc repro`/`dvc status`
+  reproducibility. See `docs/11_data_lifecycle.md` for the full split.
+- ~~**Cost/usage tracking**~~ ✅ done 2026-08-18 (Phase 6): OpenAI token
+  usage (prompt/completion/embedding) and an estimated $ cost per query,
+  via a `contextvars`-based accumulator
+  (`src/observability/cost_tracking.py`) rather than threading a value
+  through every agent's return shape. Logged as MLflow metrics per agent
+  and attached to `audit_trail.token_usage`/`estimated_cost_usd` in the API
+  response and `web/`'s result footer.
+- ~~**Security hardening**~~ ✅ done 2026-08-18 (Phase 6): the citation-bound
+  prompt template wraps retrieved chunk text in explicit
+  instruction-hierarchy framing, plus a non-blocking
+  `src/security/prompt_injection_check.py` scan surfaced as a risk-assessment
+  warning; `QueryRequest` now rejects control characters and constrains
+  `model_version`'s shape; a new `test_data_classification.py` scans every
+  indexed chunk for PII-shaped patterns as an automated, repeatable check
+  (not just a docs claim) — one real match found (CSSF's own published
+  institutional contact address), confirmed benign and allowlisted with a
+  stated reason.
+- ~~**Containerization**~~ ✅ done 2026-08-18 (Phase 6) — the actual gap
+  (`docker/Dockerfile.api` + the `api` service already existed from Phase
+  3) was a missing `web` service: new `docker/Dockerfile.web` (multi-stage
+  Node build → nginx) + a `web` service in `docker-compose.yml` make
+  `docker compose up -d --build` the real one-command answer for the full
+  stack.
 - **Vector store scalability (later, optional)**: FAISS + pickle files is
   fine at current scale (a few thousand chunks) but has no concurrent-write
   story and no metadata-filtering-at-the-DB-layer. If source count grows
@@ -413,7 +442,7 @@ finance_compliance_rag/
 | **3. API layer** ✅ | Decouple UI from pipeline | FastAPI service, typed schemas, streaming endpoint, OpenAPI → TS client generation | Phase 0 |
 | **4. TypeScript UI** ✅ | Real frontend | React+TS app (`web/`): query form, SSE-driven agent-by-agent results, audit/history view via `GET /query/{trace_id}` | Phase 3 |
 | **5. Source enrichment** ✅ | Broader coverage | GDPR chunking/indexing ✅, shared base parser (deliberately deferred, see below) ✅, 4 more CSSF/DORA/EBA documents ✅, NIS2 added and wired into the live path ✅ | Phase 0, benefits from Phase 2 |
-| **6. Hardening** | Ready for heavier use | DVC for data artifacts, containerization, cost tracking, human-review workflow, security checks | Phases 1–5 |
+| **6. Hardening** ✅ | Ready for heavier use | CI lint/type checking, prompt versioning, cost tracking, security hardening, human-review workflow, DVC for `data/raw/`, containerization (`web` service) | Phases 1–5 |
 
 Phases 0 and 3 can start in parallel; everything else is easier once 0 is
 done. Phase 5's new-source work benefits from Phase 2 existing (so new
@@ -421,10 +450,13 @@ sources come with eval coverage immediately) but doesn't strictly require it.
 
 ## 6. Risks & trade-offs to weigh
 
-- **DVC vs. staying on plain git for data**: DVC adds tooling overhead; if
-  the dataset stays small (a handful of PDFs, current FAISS index sizes),
-  it may be simpler to just `.gitignore` the rebuildable artifacts and accept
-  a "run the pipeline once after clone" setup step instead of adopting DVC.
+- ~~**DVC vs. staying on plain git for data**~~ — decided 2026-08-18 (Phase
+  6): adopted DVC, but only for `data/raw/` (source PDFs) — not
+  `data/processed/`, which stays plain git so chunk changes remain
+  human-diffable in PR review (see `docs/11_data_lifecycle.md`). The
+  rebuildable artifacts this bullet also flagged (`data/faiss/` etc.) were
+  already `.gitignore`d since Phase 0 and remain so; DVC wasn't needed for
+  those.
 - **FastAPI+React vs. extending Streamlit further**: Streamlit is faster to
   iterate on but caps out on UX control and doesn't give you a typed contract
   with a future non-Python consumer. Worth confirming this is actually going
@@ -439,7 +471,7 @@ sources come with eval coverage immediately) but doesn't strictly require it.
 
 ## 7. Suggested immediate next step
 
-Phases 0–5 are done, tested, and verified live — see
+Phases 0–6 are done, tested, and verified live — see
 `docs/09_current_state_and_known_issues.md` for the full list of what
 changed and what's still open (notably: dependency versions still unpinned;
 a real generation-quality issue the Phase 2 eval framework surfaced, where
@@ -448,26 +480,31 @@ sampling variance; the CI eval gate's hard dependency on the configured
 OpenAI account having credits; the audit store having no retention policy;
 both Streamlit UIs remaining as deliberately-kept admin/debug tools; GDPR
 being indexed-and-queryable but deliberately not part of the live
-orchestrator/API default fan-out — a decision that still stands, since
-nothing about adding NIS2 changed the reasoning for GDPR specifically; and,
-new from finishing Phase 5, three independent hardcoded regulator lists
-— `retrieval_agent.VECTOR_STORES`, `citation_bound_answer_generation.py`'s
-`regulators` dict, and `run_eval.py`'s `_REGULATOR_TO_STORE_KEY` — that all
-have to be kept in sync by hand whenever a live regulator is added or
-removed, with nothing enforcing that today). Next up, in priority order:
-1. **Phase 6 (hardening)** — DVC for data artifacts, containerization, cost
-   tracking, human-review workflow, security checks. The natural next step
-   now that source enrichment (Phase 5) is complete.
-2. **MiCA** or another new regulator, if broader coverage is still the
-   priority over hardening — same "1–2 sources per iteration" discipline
-   (§6) that kept NIS2 to its own pass applies here too, and a second
-   Article-based source beyond DORA/GDPR/NIS2 would be a good forcing
-   function for revisiting the shared-base-parser question with a real
-   third data point (now technically a fourth, but the first three all
-   share the identical pattern via the same parameterized function).
-3. **Deduplicate the regulator-list problem** noted above — worth doing
-   before a fifth live source makes the hand-sync burden worse; a single
-   source of truth (e.g. a `LIVE_REGULATORS` registry both `retrieval_agent`
-   and `citation_bound_answer_generation` import from) would remove an
-   entire class of "forgot to update one of three lists" bugs like the one
-   `test_retrieval_agent_returns_documents` had already fallen into.
+orchestrator/API default fan-out; three independent hardcoded regulator
+lists — `retrieval_agent.VECTOR_STORES`, `citation_bound_answer_generation.py`'s
+`regulators` dict, and `run_eval.py`'s `_REGULATOR_TO_STORE_KEY` — still
+kept in sync by hand; the human-in-the-loop review workflow having no
+auth/user-identity behind `reviewer_name`; and the `citation_agent`/
+`retrieval_agent` independent-re-retrieval duplication, which Phase 6's
+cost-tracking numbers now make directly visible as roughly double the
+embedding calls a single shared retrieval would need). Next up, in
+priority order:
+1. **Deduplicate the regulator-list problem** noted above — worth doing
+   before a fifth live source (e.g. MiCA) makes the hand-sync burden worse;
+   a single source of truth (e.g. a `LIVE_REGULATORS` registry both
+   `retrieval_agent` and `citation_bound_answer_generation` import from)
+   would remove an entire class of "forgot to update one of three lists"
+   bugs like the one `test_retrieval_agent_returns_documents` had already
+   fallen into.
+2. **Fix the `citation_agent` independent-re-retrieval duplication** —
+   have it reuse the orchestrator's already-computed `retrieval_result`
+   instead of calling `retrieve()` again from scratch, halving embedding
+   calls per query and removing the structural risk
+   `risk_assessment_agent`'s coverage check depends on (two independent
+   retrieval calls that should, but aren't guaranteed to, return the same
+   chunks).
+3. **MiCA** or another new regulator, if broader coverage is the priority —
+   same "1–2 sources per iteration" discipline (§6) that kept NIS2 to its
+   own pass applies here too, and a second Article-based source beyond
+   DORA/GDPR/NIS2 would be a good forcing function for revisiting the
+   shared-base-parser question with a real third data point.

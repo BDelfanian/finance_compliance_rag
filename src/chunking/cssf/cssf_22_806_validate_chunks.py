@@ -3,6 +3,7 @@ removal, section ordering) directly — none of them are 20/750-specific.
 `validate_no_chapter_4` is skipped: it checks for a structural quirk
 specific to 20/750's own text, not applicable here.
 """
+
 from pathlib import Path
 
 from src.chunking.cssf.cssf_validate_chunks import (

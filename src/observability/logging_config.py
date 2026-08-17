@@ -68,9 +68,11 @@ class _TraceIdFilter(logging.Filter):
 # Standard LogRecord attributes, so `logger.info(..., extra={"confidence": x})`
 # style calls surface their extra fields in the JSON payload automatically
 # instead of silently being dropped.
-_RESERVED_RECORD_ATTRS = frozenset(logging.LogRecord(
-    "", 0, "", 0, "", (), None
-).__dict__.keys()) | {"message", "asctime", "trace_id"}
+_RESERVED_RECORD_ATTRS = frozenset(logging.LogRecord("", 0, "", 0, "", (), None).__dict__.keys()) | {
+    "message",
+    "asctime",
+    "trace_id",
+}
 
 
 class _JsonFormatter(logging.Formatter):

@@ -9,6 +9,7 @@ reusing cssf_cleaning.remove_footers's whole-string re.sub, since the new
 bare-page-number pattern needs `^...$` anchored to each line, and
 remove_footers doesn't set re.MULTILINE.
 """
+
 import re
 
 PAGE_NOISE_PATTERNS = [

@@ -23,18 +23,13 @@ the following In-Scope Entities when..." (line 318, prose referencing Part
 I, not a heading) was misread as a heading and corrupted every subsequent
 chunk's `part` field with that sentence fragment instead of the real title.
 """
+
 import re
 from typing import Dict, List, Tuple
 
-SECTION_PATTERN = re.compile(
-    r"^Section\s+(\d+\.\d+\.\d+)\s+(.+)?$",
-    re.MULTILINE
-)
+SECTION_PATTERN = re.compile(r"^Section\s+(\d+\.\d+\.\d+)\s+(.+)?$", re.MULTILINE)
 
-PART_PATTERN = re.compile(
-    r"^Part\s+([IVX]+)\s*[–—-]\s*(.+)?$",
-    re.MULTILINE
-)
+PART_PATTERN = re.compile(r"^Part\s+([IVX]+)\s*[–—-]\s*(.+)?$", re.MULTILINE)
 
 DOCUMENT_META = {
     "document_id": "cssf_22_806",
@@ -78,7 +73,7 @@ def build_section_chunks(text: str) -> List[Dict]:
     sections = find_sections(text, body_start)
     parts = find_parts(text, body_start)
 
-    chunks = []
+    chunks: list[dict] = []
     if not sections:
         return chunks
 
@@ -97,17 +92,19 @@ def build_section_chunks(text: str) -> List[Dict]:
 
         part = part_for_position(start_pos)
 
-        chunks.append({
-            "chunk_id": f"{DOCUMENT_META['chunk_id_prefix']}_{section_id.replace('.', '_')}",
-            "document_id": DOCUMENT_META["document_id"],
-            "document_title": DOCUMENT_META["document_title"],
-            "authority": DOCUMENT_META["authority"],
-            "jurisdiction": DOCUMENT_META["jurisdiction"],
-            "binding_level": DOCUMENT_META["binding_level"],
-            "part": f"{part[0]} – {part[2]}" if part else "",
-            "section_id": section_id,
-            "title": title,
-            "text": content,
-        })
+        chunks.append(
+            {
+                "chunk_id": f"{DOCUMENT_META['chunk_id_prefix']}_{section_id.replace('.', '_')}",
+                "document_id": DOCUMENT_META["document_id"],
+                "document_title": DOCUMENT_META["document_title"],
+                "authority": DOCUMENT_META["authority"],
+                "jurisdiction": DOCUMENT_META["jurisdiction"],
+                "binding_level": DOCUMENT_META["binding_level"],
+                "part": f"{part[0]} – {part[2]}" if part else "",
+                "section_id": section_id,
+                "title": title,
+                "text": content,
+            }
+        )
 
     return chunks

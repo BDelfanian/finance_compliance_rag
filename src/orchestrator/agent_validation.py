@@ -28,5 +28,4 @@ def validate_agent_result(result: AgentResult) -> None:
     assert isinstance(result["confidence"], (float, int))
     assert isinstance(result["warnings"], list)
 
-    assert 0.0 <= float(result["confidence"]) <= 1.0, \
-        "Confidence must be between 0 and 1"
+    assert 0.0 <= float(result["confidence"]) <= 1.0, "Confidence must be between 0 and 1"

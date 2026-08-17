@@ -1,0 +1,27 @@
+stages:
+  # NOTE: raw PDF -> data/processed/extracted_text is NOT a stage here — per
+  # docs/03_text_extraction.md it's a manual, human-reviewed pdfplumber pass
+  # (no repeatable CLI exists for it in this repo), which is deliberate per
+  # docs/10 §2's ingestion principle ("nothing is embedded or indexed
+  # without a review step"). This pipeline picks up from that reviewed
+  # output, same starting point src/run_chunking.py itself assumes.
+  chunk:
+    cmd: python -c "import subprocess, sys; from src.chunking.registry import DOCUMENT_REGISTRY; [subprocess.run([sys.executable, '-m', 'src.run_chunking', '--doc', d], check=True) for d in DOCUMENT_REGISTRY]"
+    deps:
+      - data/processed/extracted_text
+      - src/chunking
+      - src/run_chunking.py
+    outs:
+      # cache: false keeps this directory plain-git-diffable (see
+      # docs/11_data_lifecycle.md) — DVC still tracks it as a pipeline
+      # dependency for `dvc repro`/`dvc status`, it just doesn't own a
+      # separate content-addressed copy of it the way data/raw is.
+      - data/processed/chunks:
+          cache: false
+
+  index:
+    cmd: python -c "import src.retrieval.run_embeddings_retrieval"
+    deps:
+      - data/processed/chunks
+    outs:
+      - data/faiss

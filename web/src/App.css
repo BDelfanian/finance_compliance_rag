@@ -417,3 +417,74 @@
   padding: 0.4rem 0.7rem;
   font-size: 0.85rem;
 }
+
+/* Review panel (human-in-the-loop, roadmap §3.6) */
+
+.review-list {
+  list-style: none;
+  margin: 0 0 1rem;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.review-list__item {
+  border-radius: 6px;
+  padding: 0.5rem 0.75rem;
+  font-size: 0.85rem;
+  border: 1px solid var(--color-border);
+}
+
+.review-list__item--approved {
+  background: var(--color-green-bg);
+  color: var(--color-green);
+}
+
+.review-list__item--rejected {
+  background: var(--color-red-bg);
+  color: var(--color-red);
+}
+
+.review-list__annotation {
+  margin: 0.35rem 0 0;
+  color: var(--color-text);
+  font-weight: 400;
+}
+
+.review-form {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.review-form input,
+.review-form textarea {
+  padding: 0.4rem 0.55rem;
+  border: 1px solid var(--color-border);
+  border-radius: 6px;
+  font-size: 0.85rem;
+  font-family: inherit;
+  resize: vertical;
+}
+
+.review-form__actions {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.review-form__actions button {
+  background: var(--color-green-bg);
+  color: var(--color-green);
+  border: 1px solid var(--color-green);
+  border-radius: 6px;
+  padding: 0.4rem 0.9rem;
+  font-size: 0.85rem;
+  font-weight: 600;
+}
+
+.review-form__reject {
+  background: var(--color-red-bg) !important;
+  color: var(--color-red) !important;
+  border-color: var(--color-red) !important;
+}

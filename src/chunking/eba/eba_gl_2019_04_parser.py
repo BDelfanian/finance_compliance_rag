@@ -14,6 +14,7 @@ just a dotted sub-heading like "3.1. Proportionality" followed by the
 literal word "[deleted]" — are naturally excluded already; no explicit
 filtering needed.
 """
+
 from typing import Dict, List
 
 from src.chunking.eba.eba_parser import build_paragraph_chunks as _build_paragraph_chunks
@@ -21,8 +22,7 @@ from src.chunking.eba.eba_parser import build_paragraph_chunks as _build_paragra
 DOCUMENT_META = {
     "document_id": "eba_gl_2019_04",
     "document_title": (
-        "EBA/GL/2019/04 (consolidated, as amended by EBA/GL/2025/02) — "
-        "Guidelines on ICT and Security Risk Management"
+        "EBA/GL/2019/04 (consolidated, as amended by EBA/GL/2025/02) — Guidelines on ICT and Security Risk Management"
     ),
     "authority": "European Banking Authority",
     "jurisdiction": "EU",

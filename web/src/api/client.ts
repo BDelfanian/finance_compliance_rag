@@ -1,4 +1,11 @@
-import type { HealthResponse, QueryRequest, QueryResponse, StageEvent } from "./types";
+import type {
+  HealthResponse,
+  QueryRequest,
+  QueryResponse,
+  ReviewRecord,
+  ReviewRequest,
+  StageEvent,
+} from "./types";
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL ?? "http://localhost:8000";
 
@@ -41,6 +48,22 @@ export async function runQuery(request: QueryRequest): Promise<QueryResponse> {
 export async function fetchQueryByTraceId(traceId: string): Promise<QueryResponse> {
   const res = await fetch(`${API_BASE_URL}/query/${encodeURIComponent(traceId)}`);
   if (!res.ok) throw await readErrorDetail(res, "Lookup failed.");
+  return res.json();
+}
+
+export async function submitReview(traceId: string, request: ReviewRequest): Promise<ReviewRecord> {
+  const res = await fetch(`${API_BASE_URL}/query/${encodeURIComponent(traceId)}/review`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(request),
+  });
+  if (!res.ok) throw await readErrorDetail(res, "Review submission failed.");
+  return res.json();
+}
+
+export async function fetchReviews(traceId: string): Promise<ReviewRecord[]> {
+  const res = await fetch(`${API_BASE_URL}/query/${encodeURIComponent(traceId)}/reviews`);
+  if (!res.ok) throw await readErrorDetail(res, "Fetching reviews failed.");
   return res.json();
 }
 

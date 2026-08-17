@@ -1,13 +1,12 @@
 import pytest
-import asyncio
 
 from src.agents.summarization_agent import summarization_agent
 from src.orchestrator.agent_validation import validate_agent_result
 
-
 # -------------------------------
 # Fixtures
 # -------------------------------
+
 
 @pytest.fixture
 def citation_result_fixture():
@@ -33,6 +32,7 @@ def citation_result_fixture():
 # -------------------------------
 # Tests
 # -------------------------------
+
 
 @pytest.mark.asyncio
 async def test_summarization_executive_mode(citation_result_fixture):

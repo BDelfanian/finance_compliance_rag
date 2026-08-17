@@ -3,12 +3,17 @@ import os
 import tempfile
 import time
 from contextlib import contextmanager
-from typing import Dict, Any, Callable, Awaitable, Iterator
+from typing import Any, Awaitable, Callable, Dict, Iterator
 
 import mlflow
 from langchain_core.runnables import Runnable
 
+from src.agents.citation_agent import citation_agent
+from src.agents.retrieval_agent import retrieval_agent
+from src.agents.risk_assessment_agent import risk_assessment_agent
+from src.agents.summarization_agent import summarization_agent
 from src.config import get_settings
+from src.observability.cost_tracking import current_index, summarize, usage_since
 from src.observability.logging_config import get_logger, get_trace_id
 
 logger = get_logger(__name__)
@@ -84,7 +89,12 @@ def traced_query_run(trace_id: str, query: str) -> Iterator[None]:
 # -------------------------------
 # MLflow Logging Helper
 # -------------------------------
-async def log_agent_run(agent_name: str, payload: Dict[str, Any], latency_seconds: float):
+async def log_agent_run(
+    agent_name: str,
+    payload: Dict[str, Any],
+    latency_seconds: float,
+    usage_summary: Dict[str, Any] | None = None,
+):
     """
     Logs the agent payload to MLflow in JSON format, plus params/metrics
     (roadmap §3.2: "parameters, not just artifacts" / "metrics"). Nests
@@ -103,24 +113,39 @@ async def log_agent_run(agent_name: str, payload: Dict[str, Any], latency_second
 
         # Params: static config that shaped this run, so runs are
         # comparable in the MLflow UI without opening the JSON artifact.
-        mlflow.log_params({
-            "embedding_model": settings.embedding_model,
-            "llm_model": settings.llm_model,
-            "similarity_threshold": settings.similarity_threshold,
-            "k_nearest": settings.k_nearest,
-            "citation_top_k": settings.citation_top_k,
-        })
-
-        # Metrics: measured outcomes of this specific run.
-        mlflow.log_metrics({
-            "latency_seconds": round(latency_seconds, 4),
-            "confidence": float(agent_result.get("confidence", 0.0)),
-            "warnings_count": len(agent_result.get("warnings") or []),
-        })
-
-        tmp_file = tempfile.NamedTemporaryFile(
-            mode="w", delete=False, suffix=".json"
+        mlflow.log_params(
+            {
+                "embedding_model": settings.embedding_model,
+                "llm_model": settings.llm_model,
+                "similarity_threshold": settings.similarity_threshold,
+                "k_nearest": settings.k_nearest,
+                "citation_top_k": settings.citation_top_k,
+                "prompt_version": settings.prompt_version,
+            }
         )
+
+        # Metrics: measured outcomes of this specific run. Cost/usage metrics
+        # (roadmap §3.6) are 0 for agents that make no OpenAI call of their
+        # own (summarization, risk_assessment) — that's correct, not a gap.
+        usage_summary = usage_summary or {
+            "prompt_tokens": 0,
+            "completion_tokens": 0,
+            "embedding_tokens": 0,
+            "estimated_cost_usd": 0.0,
+        }
+        mlflow.log_metrics(
+            {
+                "latency_seconds": round(latency_seconds, 4),
+                "confidence": float(agent_result.get("confidence", 0.0)),
+                "warnings_count": len(agent_result.get("warnings") or []),
+                "prompt_tokens": usage_summary["prompt_tokens"],
+                "completion_tokens": usage_summary["completion_tokens"],
+                "embedding_tokens": usage_summary["embedding_tokens"],
+                "estimated_cost_usd": usage_summary["estimated_cost_usd"],
+            }
+        )
+
+        tmp_file = tempfile.NamedTemporaryFile(mode="w", delete=False, suffix=".json")
         try:
             json.dump(payload, tmp_file, indent=2)
             tmp_file.close()
@@ -132,21 +157,31 @@ async def log_agent_run(agent_name: str, payload: Dict[str, Any], latency_second
 # -------------------------------
 # Runnable wrapper with MLflow
 # -------------------------------
-def wrap_agent_with_mlflow(agent_fn: Callable[..., Awaitable[Dict[str, Any]]]) -> Runnable:
+def wrap_agent_with_mlflow(agent_fn: Callable[..., Awaitable[Any]]) -> Runnable:
     """
     Wraps an async agent with:
     - MLflow logging
     - LangChain Runnable interface
+
+    `agent_fn`'s return type is `Awaitable[Any]`, not a specific dict shape,
+    because the four agents genuinely return two different shapes:
+    retrieval/citation wrap their AgentResult under "agent_result", while
+    summarization/risk_assessment return the flat AgentResult TypedDict
+    directly (see the "agent_name" lookup below, which already handles
+    both).
     """
 
     async def wrapped_fn(inputs: Dict[str, Any]) -> Dict[str, Any]:
         agent_label = getattr(agent_fn, "__name__", "unknown")
         logger.info("agent run started", extra={"agent": agent_label})
 
-        # Run the original agent
+        # Run the original agent, tracking any OpenAI usage recorded during
+        # just this agent's call (not the whole query's — see cost_tracking.py).
         start = time.perf_counter()
+        usage_start = current_index()
         outputs = await agent_fn(**inputs)
         latency_seconds = time.perf_counter() - start
+        agent_usage_summary = summarize(usage_since(usage_start))
 
         # retrieval/citation payloads wrap the AgentResult under
         # "agent_result"; summarization/risk_assessment payloads *are* the
@@ -157,11 +192,14 @@ def wrap_agent_with_mlflow(agent_fn: Callable[..., Awaitable[Dict[str, Any]]]) -
 
         # Log to MLflow
         try:
-            await log_agent_run(agent_name=agent_name, payload=outputs, latency_seconds=latency_seconds)
-        except Exception:
-            logger.warning(
-                "MLflow logging skipped", extra={"agent": agent_name}, exc_info=True
+            await log_agent_run(
+                agent_name=agent_name,
+                payload=outputs,
+                latency_seconds=latency_seconds,
+                usage_summary=agent_usage_summary,
             )
+        except Exception:
+            logger.warning("MLflow logging skipped", extra={"agent": agent_name}, exc_info=True)
 
         logger.info(
             "agent run completed",
@@ -172,17 +210,13 @@ def wrap_agent_with_mlflow(agent_fn: Callable[..., Awaitable[Dict[str, Any]]]) -
 
     # RunnableLambda equivalent: sync dummy + async afunc
     from langchain_core.runnables import RunnableLambda
+
     return RunnableLambda(lambda x: x, afunc=wrapped_fn)
 
 
 # -------------------------------
 # Example agent chain wrappers
 # -------------------------------
-from src.agents.retrieval_agent import retrieval_agent
-from src.agents.citation_agent import citation_agent
-from src.agents.summarization_agent import summarization_agent
-from src.agents.risk_assessment_agent import risk_assessment_agent
-
 # Wrap agents with MLflow logging
 retrieval_chain = wrap_agent_with_mlflow(retrieval_agent)
 citation_chain = wrap_agent_with_mlflow(citation_agent)

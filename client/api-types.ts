@@ -72,6 +72,45 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/query/{trace_id}/review": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Submit Review
+         * @description Human-in-the-loop approve/reject/annotate action (roadmap §3.6) — can
+         *     only be filed against a trace_id that actually completed a run, so a
+         *     typo'd trace_id can't silently create an orphan review record.
+         */
+        post: operations["submit_review_query__trace_id__review_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/query/{trace_id}/reviews": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Reviews */
+        get: operations["get_reviews_query__trace_id__reviews_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -107,6 +146,9 @@ export interface components {
             agents: string[];
             /** Timestamp */
             timestamp: string;
+            token_usage?: components["schemas"]["TokenUsage"] | null;
+            /** Estimated Cost Usd */
+            estimated_cost_usd?: number | null;
         };
         /** Citation */
         Citation: {
@@ -169,6 +211,63 @@ export interface components {
              */
             sources: components["schemas"]["Citation"][];
             audit_trail: components["schemas"]["AuditTrail"];
+        };
+        /** ReviewRecord */
+        ReviewRecord: {
+            /**
+             * Decision
+             * @enum {string}
+             */
+            decision: "approved" | "rejected";
+            /** Reviewer Name */
+            reviewer_name: string;
+            /** Reviewer Role */
+            reviewer_role?: string | null;
+            /** Annotation */
+            annotation?: string | null;
+            /** Trace Id */
+            trace_id: string;
+            /** Timestamp */
+            timestamp: string;
+        };
+        /**
+         * ReviewRequest
+         * @description Human-in-the-loop approve/reject/annotate action on a completed run
+         *     (roadmap §3.6) — doubles as the per-answer compliance sign-off record
+         *     docs/06 §4.10 calls for. `reviewer_name` is self-reported free text:
+         *     this app has no auth/user-identity system, a deliberate, documented
+         *     limitation (see docs/09), not an oversight.
+         */
+        ReviewRequest: {
+            /**
+             * Decision
+             * @enum {string}
+             */
+            decision: "approved" | "rejected";
+            /** Reviewer Name */
+            reviewer_name: string;
+            /** Reviewer Role */
+            reviewer_role?: string | null;
+            /** Annotation */
+            annotation?: string | null;
+        };
+        /** TokenUsage */
+        TokenUsage: {
+            /**
+             * Prompt Tokens
+             * @default 0
+             */
+            prompt_tokens: number;
+            /**
+             * Completion Tokens
+             * @default 0
+             */
+            completion_tokens: number;
+            /**
+             * Embedding Tokens
+             * @default 0
+             */
+            embedding_tokens: number;
         };
         /** ValidationError */
         ValidationError: {
@@ -314,6 +413,108 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["QueryResponse"];
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    submit_review_query__trace_id__review_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                trace_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ReviewRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ReviewRecord"];
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_reviews_query__trace_id__reviews_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                trace_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ReviewRecord"][];
                 };
             };
             /** @description Bad Request */

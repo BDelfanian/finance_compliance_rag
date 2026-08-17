@@ -9,6 +9,7 @@ line instead of a page-number marker. Same noise-removal approach as
 dora_cleaning.py (strip matching lines), different patterns because the
 underlying format genuinely differs.
 """
+
 import re
 
 OJ_L_SERIES_NOISE_PATTERNS = [

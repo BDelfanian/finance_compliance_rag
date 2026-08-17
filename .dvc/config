@@ -1,0 +1,5 @@
+[core]
+    analytics = false
+    remote = localstorage
+['remote "localstorage"']
+    url = ../../finance_compliance_rag_dvc_storage

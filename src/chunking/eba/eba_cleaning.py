@@ -1,11 +1,10 @@
 import re
 
-
 EBA_NOISE_PATTERNS = [
     r"EBA/GL/\d{4}/\d+",
     r"FINAL REPORT",
     r"^Page\s+\d+.*$",
-    r"^\d+$",                    # standalone page numbers
+    r"^\d+$",  # standalone page numbers
     r"European Banking Authority",
     r"^CONSOLIDATED VERSION OF GUIDELINES",  # repeating page-break header in consolidated GL text
 ]

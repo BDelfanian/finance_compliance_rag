@@ -24,6 +24,9 @@ data/eval_results/
 # Per-trace audit records written by app/api.py (src/observability/audit_store.py)
 data/audit_log/
 
+# Per-trace human-in-the-loop review records (src/observability/review_store.py)
+data/review_log/
+
 # client/api-types.ts and client/openapi.json ARE committed (see
 # client/README.md) — only node_modules is a build artifact.
 client/node_modules/

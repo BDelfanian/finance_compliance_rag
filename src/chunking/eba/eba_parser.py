@@ -1,16 +1,9 @@
 import re
 from typing import Dict, List, Optional, Tuple
 
+PARAGRAPH_PATTERN = re.compile(r"^(\d+)\.\s+(.*)", re.MULTILINE)
 
-PARAGRAPH_PATTERN = re.compile(
-    r"^(\d+)\.\s+(.*)",
-    re.MULTILINE
-)
-
-SECTION_TITLE_PATTERN = re.compile(
-    r"^[A-Z][A-Za-z\s\-]{5,}$",
-    re.MULTILINE
-)
+SECTION_TITLE_PATTERN = re.compile(r"^[A-Z][A-Za-z\s\-]{5,}$", re.MULTILINE)
 
 DOCUMENT_META = {
     "document_id": "eba_gl_outsourcing",
@@ -48,7 +41,7 @@ def build_paragraph_chunks(text: str, document_meta: Optional[Dict] = None) -> L
     paragraphs = find_paragraphs(text)
     sections = find_sections(text)
 
-    chunks = []
+    chunks: list[dict] = []
 
     if not paragraphs:
         return chunks
@@ -68,16 +61,18 @@ def build_paragraph_chunks(text: str, document_meta: Optional[Dict] = None) -> L
 
         section = section_for_position(start_pos)
 
-        chunks.append({
-            "chunk_id": f"{meta['chunk_id_prefix']}_{para_no}",
-            "document_id": meta["document_id"],
-            "document_title": meta["document_title"],
-            "authority": meta["authority"],
-            "jurisdiction": meta["jurisdiction"],
-            "binding_level": meta["binding_level"],
-            "paragraph_number": para_no,
-            "section_title": section[0] if section else "",
-            "text": content
-        })
+        chunks.append(
+            {
+                "chunk_id": f"{meta['chunk_id_prefix']}_{para_no}",
+                "document_id": meta["document_id"],
+                "document_title": meta["document_title"],
+                "authority": meta["authority"],
+                "jurisdiction": meta["jurisdiction"],
+                "binding_level": meta["binding_level"],
+                "paragraph_number": para_no,
+                "section_title": section[0] if section else "",
+                "text": content,
+            }
+        )
 
     return chunks

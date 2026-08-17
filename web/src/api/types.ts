@@ -6,9 +6,12 @@ import type { components } from "../../../client/api-types";
 export type Citation = components["schemas"]["Citation"];
 export type AgentResultResponse = components["schemas"]["AgentResultResponse"];
 export type AuditTrail = components["schemas"]["AuditTrail"];
+export type TokenUsage = components["schemas"]["TokenUsage"];
 export type QueryResponse = components["schemas"]["QueryResponse"];
 export type QueryRequest = components["schemas"]["QueryRequest"];
 export type HealthResponse = components["schemas"]["HealthResponse"];
+export type ReviewRequest = components["schemas"]["ReviewRequest"];
+export type ReviewRecord = components["schemas"]["ReviewRecord"];
 
 /**
  * Raw per-stage SSE payloads from POST /query/stream. These are the

@@ -1,11 +1,10 @@
 import re
 
-
 OJ_FOOTER_PATTERNS = [
     r"Official Journal of the European Union",
     r"^L\s+\d+/\d+.*$",
-    r"^\d{1,2}\.\d{1,2}\.\d{4}$",   # publication dates
-    r"^—\s*\d+\s*—$",              # page numbers like — 12 —
+    r"^\d{1,2}\.\d{1,2}\.\d{4}$",  # publication dates
+    r"^—\s*\d+\s*—$",  # page numbers like — 12 —
 ]
 
 

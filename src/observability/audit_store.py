@@ -36,9 +36,7 @@ def _path_for(trace_id: str) -> Path:
 
 
 def save_audit_record(trace_id: str, record: Dict[str, Any]) -> None:
-    _path_for(trace_id).write_text(
-        json.dumps(record, default=str, indent=2), encoding="utf-8"
-    )
+    _path_for(trace_id).write_text(json.dumps(record, default=str, indent=2), encoding="utf-8")
 
 
 def load_audit_record(trace_id: str) -> Optional[Dict[str, Any]]:

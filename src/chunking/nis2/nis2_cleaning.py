@@ -9,6 +9,7 @@ rows that start with "Article N" at line start, which produced false-
 positive matches against dora_parser's article-boundary regex when tested
 against the raw text. Truncating before the Annexes avoids both issues.
 """
+
 import re
 
 from src.chunking.dora.dora_cleaning import remove_official_journal_noise

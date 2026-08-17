@@ -1,13 +1,16 @@
+import hashlib
 import json
 import os
+import pickle
 from datetime import datetime
+from typing import Any, Dict
+
 import faiss
 import numpy as np
 from openai import OpenAI
-import hashlib
-import pickle
 
 from src.config import get_settings
+from src.observability.cost_tracking import record_usage
 
 # -------------------------------
 # Configuration
@@ -27,6 +30,7 @@ os.makedirs(CACHE_PATH, exist_ok=True)
 
 client = OpenAI(api_key=settings.openai_api_key or None)
 
+
 # -------------------------------
 # 1. Load chunks
 # -------------------------------
@@ -34,6 +38,7 @@ def load_chunks(filename):
     path = os.path.join(CHUNK_PATH, filename)
     with open(path, "r", encoding="utf-8") as f:
         return json.load(f)
+
 
 def load_chunk_files(filenames):
     """Concatenates chunks from multiple documents into one store's chunk
@@ -46,23 +51,30 @@ def load_chunk_files(filenames):
         chunks.extend(load_chunks(filename))
     return chunks
 
-chunks_cssf = load_chunk_files([
-    "cssf_sections.json",
-    "cssf_22_806_sections.json",
-    "cssf_24_847_paragraphs.json",
-])
-chunks_dora = load_chunk_files([
-    "dora_articles.json",
-    "dora_rts_2024_1774_articles.json",
-])
-chunks_eba = load_chunk_files([
-    "eba_paragraphs.json",
-    "eba_gl_2019_04_paragraphs.json",
-])
+
+chunks_cssf = load_chunk_files(
+    [
+        "cssf_sections.json",
+        "cssf_22_806_sections.json",
+        "cssf_24_847_paragraphs.json",
+    ]
+)
+chunks_dora = load_chunk_files(
+    [
+        "dora_articles.json",
+        "dora_rts_2024_1774_articles.json",
+    ]
+)
+chunks_eba = load_chunk_files(
+    [
+        "eba_paragraphs.json",
+        "eba_gl_2019_04_paragraphs.json",
+    ]
+)
 chunks_gdpr = load_chunks("gdpr_articles.json")
 chunks_nis2 = load_chunks("nis2_articles.json")
 
-vector_store = {
+vector_store: Dict[str, Dict[str, Any]] = {
     "cssf": {"vectors": None, "ids": [], "metadata": []},
     "dora": {"vectors": None, "ids": [], "metadata": []},
     "eba": {"vectors": None, "ids": [], "metadata": []},
@@ -70,23 +82,25 @@ vector_store = {
     "nis2": {"vectors": None, "ids": [], "metadata": []},
 }
 
+
 # -------------------------------
 # 2. Embeddings
 # -------------------------------
 def embed_batch(text_list):
-    response = client.embeddings.create(
-        model=settings.embedding_model,
-        input=text_list
-    )
+    response = client.embeddings.create(model=settings.embedding_model, input=text_list)
+    if response.usage:
+        record_usage(model=settings.embedding_model, embedding_tokens=response.usage.total_tokens)
     return np.array([r.embedding for r in response.data], dtype=np.float32)
+
 
 def embed_text(text):
     return embed_batch([text])[0]
 
+
 def process_chunks_batch(chunks, store_key):
     vectors = []
     for i in range(0, len(chunks), BATCH_SIZE):
-        batch = chunks[i:i + BATCH_SIZE]
+        batch = chunks[i : i + BATCH_SIZE]
         texts = [c["text"] for c in batch]
         batch_vectors = embed_batch(texts)
         vectors.append(batch_vectors)
@@ -96,6 +110,7 @@ def process_chunks_batch(chunks, store_key):
 
     vector_store[store_key]["vectors"] = np.vstack(vectors)
     faiss.normalize_L2(vector_store[store_key]["vectors"])
+
 
 def build_or_load_index(store_key, chunks):
     index_file = os.path.join(FAISS_PATH, f"{store_key}.index")
@@ -118,6 +133,7 @@ def build_or_load_index(store_key, chunks):
     np.save(vector_file, vector_store[store_key]["vectors"])
     return index
 
+
 faiss_indexes = {
     "cssf": build_or_load_index("cssf", chunks_cssf),
     "dora": build_or_load_index("dora", chunks_dora),
@@ -125,6 +141,7 @@ faiss_indexes = {
     "gdpr": build_or_load_index("gdpr", chunks_gdpr),
     "nis2": build_or_load_index("nis2", chunks_nis2),
 }
+
 
 # -------------------------------
 # 3. Hard filtering (SAFE)
@@ -142,6 +159,7 @@ def hard_filter(chunks, authority=None, jurisdiction=None, binding_level=None):
         filtered.append(c)
     return filtered
 
+
 # -------------------------------
 # 4. Retrieval
 # -------------------------------
@@ -149,42 +167,30 @@ def query_hash(query_text, authority, jurisdiction, binding_level, store_key, to
     key = f"{query_text}|{authority}|{jurisdiction}|{binding_level}|{store_key}|{top_k}"
     return hashlib.md5(key.encode("utf-8")).hexdigest()
 
-def retrieve(
-    query_text,
-    vector_store_key,
-    authority=None,
-    jurisdiction=None,
-    binding_level=None,
-    top_k=K_NEAREST
-):
+
+def retrieve(query_text, vector_store_key, authority=None, jurisdiction=None, binding_level=None, top_k=K_NEAREST):
     cache_file = os.path.join(
-        CACHE_PATH,
-        f"{query_hash(query_text, authority, jurisdiction, binding_level, vector_store_key, top_k)}.pkl"
+        CACHE_PATH, f"{query_hash(query_text, authority, jurisdiction, binding_level, vector_store_key, top_k)}.pkl"
     )
     if os.path.exists(cache_file):
         return pickle.load(open(cache_file, "rb"))
 
-    chunks = hard_filter(
-        vector_store[vector_store_key]["metadata"],
-        authority,
-        jurisdiction,
-        binding_level
-    )
+    chunks = hard_filter(vector_store[vector_store_key]["metadata"], authority, jurisdiction, binding_level)
 
     if not chunks:
         return {
             "query_id": f"Q_{datetime.now().strftime('%Y%m%d%H%M%S')}",
             "retrieved_chunks": [],
             "filters_applied": {"authority": authority, "jurisdiction": jurisdiction},
-            "retrieval_timestamp": datetime.now().isoformat()
+            "retrieval_timestamp": datetime.now().isoformat(),
         }
 
-    vectors = np.vstack([
-        vector_store[vector_store_key]["vectors"][
-            vector_store[vector_store_key]["ids"].index(c["chunk_id"])
+    vectors = np.vstack(
+        [
+            vector_store[vector_store_key]["vectors"][vector_store[vector_store_key]["ids"].index(c["chunk_id"])]
+            for c in chunks
         ]
-        for c in chunks
-    ])
+    )
 
     faiss.normalize_L2(vectors)
     index = faiss.IndexFlatIP(VECTOR_DIM)
@@ -200,21 +206,24 @@ def retrieve(
         if d < SIMILARITY_THRESHOLD:
             continue
         c = chunks[i]
-        results.append({
-            "chunk_id": c["chunk_id"],
-            "source_reference": c.get("section_id") or c.get("article_number") or c.get("paragraph_number"),
-            "similarity_score": float(d)
-        })
+        results.append(
+            {
+                "chunk_id": c["chunk_id"],
+                "source_reference": c.get("section_id") or c.get("article_number") or c.get("paragraph_number"),
+                "similarity_score": float(d),
+            }
+        )
 
     output = {
         "query_id": f"Q_{datetime.now().strftime('%Y%m%d%H%M%S')}",
         "retrieved_chunks": results,
         "filters_applied": {"authority": authority, "jurisdiction": jurisdiction},
-        "retrieval_timestamp": datetime.now().isoformat()
+        "retrieval_timestamp": datetime.now().isoformat(),
     }
 
     pickle.dump(output, open(cache_file, "wb"))
     return output
+
 
 # -------------------------------
 # 5. Example usage
@@ -224,7 +233,7 @@ if __name__ == "__main__":
     def pre_flight_check():
         if not settings.openai_api_key:
             raise EnvironmentError("OPENAI_API_KEY is not set. Please export it first.")
-    
+
         required_files = [
             os.path.join(CHUNK_PATH, "cssf_sections.json"),
             os.path.join(CHUNK_PATH, "cssf_22_806_sections.json"),
@@ -254,7 +263,7 @@ if __name__ == "__main__":
         vector_store_key="cssf",
         authority="CSSF",
         jurisdiction="LU",
-        top_k=5
+        top_k=5,
     )
     print("\n=== CSSF RESULT ===")
     print(json.dumps(cssf_result, indent=2))
@@ -267,7 +276,7 @@ if __name__ == "__main__":
         vector_store_key="dora",
         authority="European Union",
         jurisdiction="EU",
-        top_k=5
+        top_k=5,
     )
     print("\n=== DORA RESULT ===")
     print(json.dumps(dora_result, indent=2))
@@ -280,7 +289,7 @@ if __name__ == "__main__":
         vector_store_key="eba",
         authority="European Banking Authority",
         jurisdiction="EU",
-        top_k=5
+        top_k=5,
     )
     print("\n=== EBA RESULT ===")
     print(json.dumps(eba_result, indent=2))

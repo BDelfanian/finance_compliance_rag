@@ -12,11 +12,9 @@ Design principles:
 """
 
 import re
-from typing import Dict, Any, List
+from typing import Any, Dict, List
 
-from src.generation.citation_bound_answer_generation import (
-    generate_citation_bound_answer_cached
-)
+from src.generation.citation_bound_answer_generation import generate_citation_bound_answer_cached
 from src.orchestrator.agent_schema import AgentResult
 from src.orchestrator.agent_validation import validate_agent_result
 
@@ -24,9 +22,7 @@ from src.orchestrator.agent_validation import validate_agent_result
 _CITATION_BRACKET_RE = re.compile(r"\[([^\]]+)\]")
 
 
-def _extract_cited_chunks(
-    answer_text: str, retrieved_chunks: List[dict]
-) -> List[dict]:
+def _extract_cited_chunks(answer_text: str, retrieved_chunks: List[dict]) -> List[dict]:
     """
     Filter retrieved_chunks down to the subset the LLM actually referenced
     in its answer.
@@ -42,15 +38,11 @@ def _extract_cited_chunks(
     return [
         chunk
         for chunk in retrieved_chunks
-        if chunk.get("source_reference")
-        and any(chunk["source_reference"] in bracket for bracket in brackets)
+        if chunk.get("source_reference") and any(chunk["source_reference"] in bracket for bracket in brackets)
     ]
 
 
-async def citation_agent(
-    query: str,
-    retrieval_result: Dict[str, Any]
-) -> Dict[str, Any]:
+async def citation_agent(query: str, retrieval_result: Dict[str, Any]) -> Dict[str, Any]:
     """
     STEP 6 adapter for STEP 5 citation-bound answer generation.
 
@@ -63,10 +55,7 @@ async def citation_agent(
     # -------------------------------
     # STEP 5 passthrough
     # -------------------------------
-    citation_output = generate_citation_bound_answer_cached(
-        query_text=query,
-        top_k=5
-    )
+    citation_output = generate_citation_bound_answer_cached(query_text=query, top_k=5)
 
     retrieved_chunks: List[dict] = citation_output.get("retrieved_chunks", [])
     answer_text: str = citation_output.get("answer", "")
@@ -80,6 +69,14 @@ async def citation_agent(
     # NOT fixed" section.
     cited_chunks: List[dict] = _extract_cited_chunks(answer_text, retrieved_chunks)
 
+    # Prompt-injection resistance (roadmap §3.6): a non-blocking signal from
+    # STEP 5 (src.security.prompt_injection_check, via
+    # generate_citation_bound_answer) surfaced here as a warning so it's
+    # auditable in the risk assessment output, not silently dropped.
+    warnings: List[str] = []
+    if citation_output.get("injection_detected"):
+        warnings.append("Anomalous retrieved chunk text")
+
     # -------------------------------
     # AgentResult normalization
     # -------------------------------
@@ -88,7 +85,7 @@ async def citation_agent(
         "answer": answer_text,
         "citations": cited_chunks,
         "confidence": confidence,
-        "warnings": [],
+        "warnings": warnings,
     }
 
     validate_agent_result(agent_result)

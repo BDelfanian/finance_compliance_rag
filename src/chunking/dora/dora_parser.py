@@ -1,16 +1,9 @@
 import re
-from typing import List, Dict, Optional, Tuple
+from typing import Dict, List, Optional, Tuple
 
+CHAPTER_PATTERN = re.compile(r"^CHAPTER\s+([IVX]+)\b\s*(.*)?$", re.MULTILINE)
 
-CHAPTER_PATTERN = re.compile(
-    r"^CHAPTER\s+([IVX]+)\b\s*(.*)?$",
-    re.MULTILINE
-)
-
-ARTICLE_PATTERN = re.compile(
-    r"^Article\s+(\d+)\b(?:\s*[–-]\s*(.*))?$",
-    re.MULTILINE
-)
+ARTICLE_PATTERN = re.compile(r"^Article\s+(\d+)\b(?:\s*[–-]\s*(.*))?$", re.MULTILINE)
 
 # Article/chapter numbering and OJ formatting here is EU-legislative-act
 # convention, not DORA-specific — GDPR (same Regulation-of-the-EU structure)
@@ -60,7 +53,7 @@ def build_article_chunks(text: str, document_meta: Optional[Dict] = None) -> Lis
     articles = find_articles(text)
     chapters = find_chapters(text)
 
-    chunks = []
+    chunks: list[dict] = []
 
     if not articles:
         return chunks
@@ -81,17 +74,19 @@ def build_article_chunks(text: str, document_meta: Optional[Dict] = None) -> Lis
 
         chapter = chapter_for_position(start_pos)
 
-        chunks.append({
-            "chunk_id": f"{meta['chunk_id_prefix']}_{article_no}",
-            "document_id": meta["document_id"],
-            "document_title": meta["document_title"],
-            "authority": meta["authority"],
-            "jurisdiction": meta["jurisdiction"],
-            "binding_level": meta["binding_level"],
-            "chapter": f"{chapter[0]} – {chapter[2]}" if chapter else "",
-            "article_number": f"Article {article_no}",
-            "article_title": title,
-            "text": content
-        })
+        chunks.append(
+            {
+                "chunk_id": f"{meta['chunk_id_prefix']}_{article_no}",
+                "document_id": meta["document_id"],
+                "document_title": meta["document_title"],
+                "authority": meta["authority"],
+                "jurisdiction": meta["jurisdiction"],
+                "binding_level": meta["binding_level"],
+                "chapter": f"{chapter[0]} – {chapter[2]}" if chapter else "",
+                "article_number": f"Article {article_no}",
+                "article_title": title,
+                "text": content,
+            }
+        )
 
     return chunks

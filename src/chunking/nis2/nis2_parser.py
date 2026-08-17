@@ -5,6 +5,7 @@ binding_level is "EU Directive", not "EU Regulation": NIS2 requires
 national transposition and isn't directly applicable the way DORA/GDPR
 are, a real legal distinction worth keeping accurate in chunk metadata.
 """
+
 from typing import Dict, List
 
 from src.chunking.dora.dora_parser import build_article_chunks as _build_article_chunks

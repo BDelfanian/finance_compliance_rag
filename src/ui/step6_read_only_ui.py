@@ -8,6 +8,7 @@ src.chains.step6_agent_wrappers_mlflow, and renders the result as a readable
 answer with citations, summary, and risk warnings — not raw JSON dumps.
 Raw agent output remains available per-run for audit purposes.
 """
+
 import asyncio
 import re
 from datetime import datetime
@@ -135,8 +136,7 @@ with st.form("query_form"):
         "Regulatory query",
         height=100,
         placeholder=(
-            "e.g. What are the management body's responsibilities for ICT risk "
-            "governance under CSSF, DORA, and EBA?"
+            "e.g. What are the management body's responsibilities for ICT risk governance under CSSF, DORA, and EBA?"
         ),
     )
     st.caption("Searches CSSF, DORA, EBA, and NIS2 together.")
@@ -153,22 +153,34 @@ if submitted and query.strip():
                 retrieval_result = asyncio.run(wrappers.retrieval_chain.ainvoke({"query": query}))
 
                 status.write("✍️ Generating citation-bound answer…")
-                citation_result = asyncio.run(wrappers.citation_chain.ainvoke({
-                    "query": query,
-                    "retrieval_result": retrieval_result,
-                }))
+                citation_result = asyncio.run(
+                    wrappers.citation_chain.ainvoke(
+                        {
+                            "query": query,
+                            "retrieval_result": retrieval_result,
+                        }
+                    )
+                )
                 agent_citation = citation_result["agent_result"]
 
                 status.write("📝 Summarizing…")
-                summary_result = asyncio.run(wrappers.summarization_chain.ainvoke({
-                    "citation_result": agent_citation,
-                }))
+                summary_result = asyncio.run(
+                    wrappers.summarization_chain.ainvoke(
+                        {
+                            "citation_result": agent_citation,
+                        }
+                    )
+                )
 
                 status.write("⚠️ Assessing risk…")
-                risk_result = asyncio.run(wrappers.risk_assessment_chain.ainvoke({
-                    "citation_result": agent_citation,
-                    "retrieval_result": retrieval_result,
-                }))
+                risk_result = asyncio.run(
+                    wrappers.risk_assessment_chain.ainvoke(
+                        {
+                            "citation_result": agent_citation,
+                            "retrieval_result": retrieval_result,
+                        }
+                    )
+                )
 
                 logger.info("query completed", extra={"query": query})
 

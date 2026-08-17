@@ -41,6 +41,18 @@ services:
       - mlflow
     restart: unless-stopped
 
+  web:
+    build:
+      # Repo root, not docker/ — see Dockerfile.web's header comment.
+      context: ..
+      dockerfile: docker/Dockerfile.web
+    container_name: finance_compliance_rag_web
+    ports:
+      - "5173:80"
+    depends_on:
+      - api
+    restart: unless-stopped
+
 volumes:
   mlflow_data:
   api_faiss:
